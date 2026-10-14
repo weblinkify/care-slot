@@ -76,19 +76,31 @@ class ForbiddenError(DomainError):
     title = "Not allowed"
 
 
-def _problem(status: int, code: str, title: str, request: Request, **extra: Any) -> JSONResponse:
+def _problem(
+    status: int,
+    code: str,
+    title: str,
+    request: Request,
+    headers: dict[str, str] | None = None,
+    **extra: Any,
+) -> JSONResponse:
     body = Problem(
         type=PROBLEM_BASE + code, title=title, status=status, instance=request.url.path, **extra
     )
     return JSONResponse(
-        body.model_dump(exclude_none=True), status_code=status, media_type=PROBLEM_JSON
+        body.model_dump(exclude_none=True),
+        status_code=status,
+        media_type=PROBLEM_JSON,
+        headers=headers,
     )
 
 
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(DomainError)
     async def _domain(request: Request, exc: DomainError) -> JSONResponse:
-        return _problem(exc.status, exc.code, exc.title, request, detail=exc.detail)
+        retry_after = getattr(exc, "retry_after", None)
+        headers = {"Retry-After": str(retry_after)} if retry_after else None
+        return _problem(exc.status, exc.code, exc.title, request, headers, detail=exc.detail)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(request: Request, exc: RequestValidationError) -> JSONResponse:

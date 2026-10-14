@@ -11,6 +11,7 @@ from careslot.modules.scheduling.api.router import router as scheduling_router
 from careslot.shared.config import Settings, get_settings
 from careslot.shared.errors import register_error_handlers
 from careslot.shared.health import router as health_router
+from careslot.shared.http import install_security_headers
 from careslot.shared.logging import configure_logging
 
 API_V1 = "/api/v1"
@@ -37,9 +38,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
+    install_security_headers(app, docs_path=f"{API_V1}/docs")
     register_error_handlers(app)
     app.include_router(health_router)
     app.include_router(scheduling_router, prefix=API_V1)
+
+    if settings.environment != "production":
+        # Dev/demo-only token issuer. Imported lazily so production never even loads it.
+        from careslot.mock_idp.router import router as mock_idp_router
+
+        app.include_router(mock_idp_router, prefix=API_V1)
     return app
 
 

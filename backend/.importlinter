@@ -21,3 +21,10 @@ layers =
     infrastructure
     application
     domain
+
+# The mock IdP is a dev/demo adapter. Business modules must never depend on it.
+[importlinter:contract:no-mock-idp-in-modules]
+name = Modules do not depend on the mock identity provider
+type = forbidden
+source_modules = careslot.modules
+forbidden_modules = careslot.mock_idp
