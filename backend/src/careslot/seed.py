@@ -94,7 +94,9 @@ def _seed_patients(session: Session) -> int:
     created = 0
     for patient_id, (name, code) in PATIENTS.items():
         if repo.get(patient_id) is None:
-            service.register(patient_id, name, PersonalIdentityCode.parse(code, synthetic_only=True))
+            service.register(
+                patient_id, name, PersonalIdentityCode.parse(code, synthetic_only=True)
+            )
             created += 1
     return created
 
