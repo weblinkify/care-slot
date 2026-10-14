@@ -36,7 +36,7 @@ Each mitigation names the code or test that implements it.
 | | Clinician browses arbitrary patients | Requires a care relationship *and* a clinical reason; masked identity code only | `patients/application/services.py` |
 | | DB dump or backup leak | Identity code envelope-encrypted; keys outside the DB | ADR-0003 |
 | | Personal data in logs or traces | No PII logged by rule; key-based redaction as safety net; access log uses route templates, no query strings; SQL spans have placeholders only | `shared/logging.py`, `test_observability.py` |
-| | Personal data sent to an LLM | Assistant receives a pseudonymised, minimised view only (see ADR-0008) | `modules/assistant` |
+| | Personal data sent to an LLM | *Planned assistant:* receives only a pseudonymised, minimised view of consenting patients; output schema-validated | ADR-0008 (planned) |
 | | Responses cached by proxies or browser | `Cache-Control: no-store` on every API response | `shared/http.py` |
 | **D**enial of service | Unbounded slot search | Search window capped at 31 days | `available_slots` |
 | | Login flooding | Rate limiting (per replica; gateway/WAF in production) | `shared/ratelimit.py` |

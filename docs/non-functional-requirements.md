@@ -91,6 +91,6 @@ critical-path for emergency care.
 - Scale to fewer replicas outside clinic hours; the database stays up.
 - Prefer managed services (PostgreSQL, key vault, container platform) over self-run
   equivalents. Engineering hours cost more than the managed premium at this scale.
-- AI assistant: provider cost is per token; inputs are minimised by design (ADR-0008), which
+- AI assistant (planned): provider cost is per token; inputs will be minimised by design, which
   is both a privacy and a cost control. A per-day request cap and caching of one summary per
   clinician per day bound the spend.

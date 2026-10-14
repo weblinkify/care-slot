@@ -28,7 +28,8 @@ function useAuditLog(patientId: string) {
   });
 }
 
-const short = (id: string | null) => (id ? id.slice(0, 8) : "system");
+/** First 8 chars of an id; `fallback` explains what an empty value means in that column. */
+const short = (id: string | null, fallback: string) => (id ? id.slice(0, 8) : fallback);
 
 export function AuditLogPage() {
   const [filterInput, setFilterInput] = useState("");
@@ -134,11 +135,11 @@ export function AuditLogPage() {
                       {formatDateTime(e.occurred_at)}
                     </td>
                     <td className="px-4 py-2.5 whitespace-nowrap">
-                      <span className="font-mono text-xs">{short(e.actor_id)}</span>{" "}
+                      <span className="font-mono text-xs">{short(e.actor_id, "system")}</span>{" "}
                       <span className="text-ink-muted">{e.actor_role ?? ""}</span>
                     </td>
                     <td className="px-4 py-2.5 font-medium whitespace-nowrap">{e.action}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs">{short(e.patient_id)}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs">{short(e.patient_id, "-")}</td>
                     <td className="px-4 py-2.5 whitespace-nowrap text-ink-muted">{e.reason}</td>
                   </tr>
                 ))}

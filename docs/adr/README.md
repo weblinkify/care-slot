@@ -13,7 +13,7 @@ interviewer) can understand *why* the code looks the way it does.
 | [0005](0005-postgresql.md) | PostgreSQL as the single datastore | Accepted |
 | [0006](0006-authentication-mock-idp-rs256.md) | RS256 JWTs from an external IdP; mock IdP for local and demo | Accepted |
 | [0007](0007-consent-as-decision-history.md) | Consent as an append-only decision history | Accepted |
-| [0008](0008-ai-assistant-pseudonymised-input.md) | AI assistant: mock provider, pseudonymised input, validated output | Accepted |
+| 0008 | AI assistant: mock provider, pseudonymised input, validated output | Planned (written with the implementation) |
 | [0009](0009-api-first-contract.md) | API-first: committed OpenAPI contract, problem+json, contract tests | Accepted |
 | [0010](0010-uv-for-python-dependencies.md) | uv for Python dependency management | Accepted |
 | [0011](0011-tailwind-semantic-design-tokens.md) | Tailwind CSS with semantic design tokens | Accepted |
