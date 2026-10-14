@@ -1,0 +1,68 @@
+# Quality gates. They apply identically to human- and AI-authored changes: there is no
+# "AI lane" and no way to merge red. Every job calls the same Makefile targets developers run.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: cd backend && uv sync --frozen
+      - name: Lint (ruff + import boundaries)
+        run: cd backend && uv run ruff check . && uv run ruff format --check . && uv run lint-imports
+      - name: Type check (mypy strict)
+        run: cd backend && uv run mypy
+      - name: Unit + integration tests (Testcontainers PostgreSQL)
+        run: cd backend && uv run pytest --cov --cov-report=term-missing
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci
+      - name: Lint (eslint + prettier incl. tailwind class order)
+        run: cd frontend && npm run lint
+      - name: Type check (tsc strict)
+        run: cd frontend && npm run typecheck
+      - name: Unit tests (vitest)
+        run: cd frontend && npm test
+      - name: Build
+        run: cd frontend && npm run build
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Secret scan (gitleaks, full history)
+        # Container instead of gitleaks-action: the action needs a paid licence for orgs.
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.24.0 detect --source=/repo --config=/repo/.gitleaks.toml --redact -v
+      - uses: astral-sh/setup-uv@v6
+      - name: Python dependency audit (pip-audit)
+        run: cd backend && uv export --frozen --no-hashes --no-emit-project > /tmp/req.txt && uvx pip-audit -r /tmp/req.txt --strict
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm dependency audit
+        run: cd frontend && npm audit --audit-level=high

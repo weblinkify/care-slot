@@ -1,0 +1,8 @@
+title = "CareSlot gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local-only throwaway credentials used by docker-compose and test fixtures"
+paths = ['''docker-compose\.yml''', '''\.env\.example''']

@@ -1,0 +1,10 @@
+# Architectural rules enforced in CI (`make lint`). See AGENTS.md section 2 and ADR-0001.
+[importlinter]
+root_package = careslot
+include_external_packages = False
+
+[importlinter:contract:shared-kernel-is-independent]
+name = Shared kernel must not depend on any module
+type = forbidden
+source_modules = careslot.shared
+forbidden_modules = careslot.modules
