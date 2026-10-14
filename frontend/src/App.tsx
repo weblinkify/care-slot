@@ -2,12 +2,13 @@ import { createBrowserRouter, Navigate, NavLink, Outlet, RouterProvider } from "
 
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/Button";
-import { Card, CardTitle } from "@/components/ui/Card";
 import { HOME_BY_ROLE, useAuth } from "@/features/auth/session";
+import { AuditLogPage } from "@/features/audit/AuditLogPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { RequireRole } from "@/features/auth/RequireRole";
 import { BookingPage } from "@/features/booking/BookingPage";
 import { MyAppointmentsPage } from "@/features/booking/MyAppointmentsPage";
+import { ProfilePage } from "@/features/profile/ProfilePage";
 import { SchedulePage } from "@/features/schedule/SchedulePage";
 import { cn } from "@/lib/cn";
 
@@ -15,9 +16,10 @@ const NAV = {
   patient: [
     { to: "/book", label: "Book" },
     { to: "/appointments", label: "My appointments" },
+    { to: "/profile", label: "My data" },
   ],
   clinician: [{ to: "/schedule", label: "My day" }],
-  admin: [{ to: "/admin", label: "Admin" }],
+  admin: [{ to: "/admin", label: "Audit log" }],
 } as const;
 
 function Nav() {
@@ -60,15 +62,6 @@ function Home() {
   return <Navigate to={session ? HOME_BY_ROLE[session.role] : "/login"} replace />;
 }
 
-function AdminPage() {
-  return (
-    <Card>
-      <CardTitle>Administration</CardTitle>
-      <p className="mt-2 text-sm text-ink-muted">The audit log viewer is added in milestone 3.</p>
-    </Card>
-  );
-}
-
 const router = createBrowserRouter([
   {
     element: <Layout />,
@@ -92,6 +85,14 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "profile",
+        element: (
+          <RequireRole allow="patient">
+            <ProfilePage />
+          </RequireRole>
+        ),
+      },
+      {
         path: "schedule",
         element: (
           <RequireRole allow="clinician">
@@ -103,7 +104,7 @@ const router = createBrowserRouter([
         path: "admin",
         element: (
           <RequireRole allow="admin">
-            <AdminPage />
+            <AuditLogPage />
           </RequireRole>
         ),
       },

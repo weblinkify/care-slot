@@ -116,11 +116,25 @@ function buildSlots(now: Date): Slot[] {
 
 export type DemoAppointment = Appointment & { patient_id: string };
 
-export type DemoState = { slots: Slot[]; appointments: DemoAppointment[] };
+export type DemoPatient = { id: string; full_name: string; identity_code: string | null };
+
+export type DemoState = {
+  slots: Slot[];
+  appointments: DemoAppointment[];
+  patients: DemoPatient[];
+};
+
+/** Same synthetic people as backend/src/careslot/seed.py (identity codes in the 900-999 range). */
+function demoPatients(): DemoPatient[] {
+  return [
+    { id: DEMO_USERS.aino?.subject ?? "", full_name: "Aino Example", identity_code: "150385-9013" },
+    { id: DEMO_USERS.eero?.subject ?? "", full_name: "Eero Sample", identity_code: "020794-9029" },
+  ];
+}
 
 export function createDemoState(now = new Date()): DemoState {
   const slots = buildSlots(now);
-  const state: DemoState = { slots, appointments: [] };
+  const state: DemoState = { slots, appointments: [], patients: demoPatients() };
 
   // Pre-book a few future slots so the clinician's day and Aino's list are not empty.
   const future = slots.filter(

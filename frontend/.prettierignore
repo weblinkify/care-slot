@@ -5,3 +5,4 @@ test-results
 public/mockServiceWorker.js
 package-lock.json
 src/api/schema.d.ts
+.vercel

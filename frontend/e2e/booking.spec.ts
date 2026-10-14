@@ -1,27 +1,6 @@
-import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-async function signIn(page: Page, username: string) {
-  await page.goto("/login");
-  await page.getByLabel("Username").fill(username);
-  await page.getByLabel("Password").fill("demo-password");
-  await page.getByRole("button", { name: "Sign in" }).click();
-}
-
-/** A weekday at least two days ahead: outside the 2-hour change cut-off, so it can be cancelled. */
-function bookableDay(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 2);
-  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
-async function expectNoA11yViolations(page: Page) {
-  const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag22aa"])
-    .analyze();
-  expect(results.violations).toEqual([]);
-}
+import { bookableDay, expectNoA11yViolations, signIn } from "./helpers";
 
 test("patient books, sees and cancels an appointment", async ({ page }) => {
   await signIn(page, "eero");

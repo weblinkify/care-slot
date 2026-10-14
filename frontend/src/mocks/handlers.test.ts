@@ -1,13 +1,14 @@
 /**
  * The demo API must behave like the real one for everything a client can see in a demo.
- * These tests pin the rules that matter: ownership, double booking, the change cut-off.
+ * These tests pin the rules that matter: ownership, double booking, the change cut-off,
+ * purpose-bound record access and the audit trail.
  */
 import { setupServer } from "msw/node";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import type { Appointment, Slot } from "@/api/types";
+import type { Appointment, AuditEntry, ChainVerification, Slot } from "@/api/types";
 
-import { CLINICIANS, createDemoState, type DemoState } from "./db";
+import { CLINICIANS, createDemoState, DEMO_USERS, type DemoState } from "./db";
 import { createHandlers } from "./handlers";
 
 const BASE = "http://demo.test/api/v1";
@@ -104,5 +105,43 @@ describe("demo API", () => {
     const aino = await token("aino");
     const res = await call("/clinicians/me/schedule?day=2026-03-03", aino);
     expect(res.status).toBe(403);
+  });
+
+  it("lets a clinician open a record only with a care relationship and a clinical reason", async () => {
+    const doctor = await token("dr.aava");
+    const eero = DEMO_USERS.eero?.subject ?? "";
+    // Book Eero with Dr. Aava to establish a care relationship.
+    const eeroToken = await token("eero");
+    const params = new URLSearchParams({
+      from: "2026-03-04T00:00:00Z",
+      to: "2026-03-05T00:00:00Z",
+    });
+    const slots = (await (
+      await call(`/clinicians/${CLINICIANS[0].id}/slots?${params.toString()}`, eeroToken)
+    ).json()) as Slot[];
+    await book(eeroToken, slots[0]?.id ?? "");
+
+    expect((await call(`/patients/${eero}`, doctor)).status).toBe(422); // no reason
+    const ok = await call(`/patients/${eero}?reason=treatment`, doctor);
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toMatchObject({ identity_code_masked: "020794-****" });
+
+    const stranger = await call(`/patients/${crypto.randomUUID()}?reason=treatment`, doctor);
+    expect(stranger.status).toBe(404);
+  });
+
+  it("audits access and verifies the hash chain", async () => {
+    const aino = await token("aino");
+    await book(aino, (await firstFreeSlot(aino)).id);
+    await call("/patients/me", aino);
+
+    const admin = await token("admin");
+    const log = (await (await call("/audit-log", admin)).json()) as AuditEntry[];
+    expect(log.map((e) => e.action)).toEqual(["audit.search", "patient.read", "appointment.book"]);
+
+    const verification = (await (
+      await call("/audit-log/verify", admin)
+    ).json()) as ChainVerification;
+    expect(verification).toEqual({ valid: true, entries_checked: 3, first_invalid_id: null });
   });
 });

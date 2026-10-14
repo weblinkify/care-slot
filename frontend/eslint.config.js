@@ -13,6 +13,7 @@ export default tseslint.config(
       "test-results",
       "public/mockServiceWorker.js",
       "src/api/schema.d.ts",
+      ".vercel",
     ],
   },
   {

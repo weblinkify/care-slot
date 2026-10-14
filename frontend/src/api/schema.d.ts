@@ -73,6 +73,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search the audit log (newest first) */
+        get: operations["search_api_v1_audit_log_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit-log/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recompute the hash chain and report the first tampered entry, if any */
+        get: operations["verify_api_v1_audit_log_verify_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/token": {
         parameters: {
             query?: never;
@@ -141,6 +175,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/patients/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The calling patient's own record */
+        get: operations["get_me_api_v1_patients_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/patients/{patient_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open a patient record (clinicians with a care relationship; audited with reason) */
+        get: operations["get_for_clinician_api_v1_patients__patient_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -179,6 +247,12 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AccessReason
+         * @description Why personal data was accessed (GDPR purpose limitation). Required for clinicians.
+         * @enum {string}
+         */
+        AccessReason: "self-service" | "treatment" | "appointment-preparation" | "audit-review" | "data-subject-request" | "system-job";
         /** AppointmentOut */
         AppointmentOut: {
             /** Cancelled At */
@@ -220,6 +294,32 @@ export interface components {
          * @enum {string}
          */
         AppointmentStatus: "booked" | "cancelled";
+        /** AuditEntryOut */
+        AuditEntryOut: {
+            /** Action */
+            action: string;
+            /** Actor Id */
+            actor_id: string | null;
+            /** Actor Role */
+            actor_role: string | null;
+            /** Hash */
+            hash: string;
+            /** Id */
+            id: number;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Patient Id */
+            patient_id: string | null;
+            /** Reason */
+            reason: string;
+            /** Resource Id */
+            resource_id: string;
+            /** Resource Type */
+            resource_type: string;
+        };
         /** BookAppointmentIn */
         BookAppointmentIn: {
             /**
@@ -227,6 +327,15 @@ export interface components {
              * Format: uuid
              */
             slot_id: string;
+        };
+        /** ChainVerificationOut */
+        ChainVerificationOut: {
+            /** Entries Checked */
+            entries_checked: number;
+            /** First Invalid Id */
+            first_invalid_id: number | null;
+            /** Valid */
+            valid: boolean;
         };
         /** ClinicOut */
         ClinicOut: {
@@ -275,6 +384,36 @@ export interface components {
             status: string;
         };
         /**
+         * OwnPatientRecordOut
+         * @description What a patient sees about themselves (GDPR right of access): everything we hold.
+         */
+        OwnPatientRecordOut: {
+            /** Full Name */
+            full_name: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Identity Code */
+            identity_code: string | null;
+        };
+        /**
+         * PatientSummaryOut
+         * @description What a clinician sees: identity code masked - enough to confirm identity verbally.
+         */
+        PatientSummaryOut: {
+            /** Full Name */
+            full_name: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Identity Code Masked */
+            identity_code_masked: string | null;
+        };
+        /**
          * Problem
          * @description RFC 7807 problem details.
          */
@@ -308,6 +447,51 @@ export interface components {
          * @enum {string}
          */
         Role: "patient" | "clinician" | "admin";
+        /**
+         * ScheduleEntryOut
+         * @description Clinician view: includes the patient id so the clinician can open the record - an
+         *     explicit, reason-stated and audited action (GET /patients/{id}).
+         */
+        ScheduleEntryOut: {
+            /** Cancelled At */
+            cancelled_at: string | null;
+            /**
+             * Clinician Id
+             * Format: uuid
+             */
+            clinician_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Patient Id
+             * Format: uuid
+             */
+            patient_id: string;
+            /**
+             * Slot Id
+             * Format: uuid
+             */
+            slot_id: string;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            status: components["schemas"]["AppointmentStatus"];
+        };
         /** SlotOut */
         SlotOut: {
             /**
@@ -720,6 +904,101 @@ export interface operations {
             };
         };
     };
+    search_api_v1_audit_log_get: {
+        parameters: {
+            query?: {
+                patient_id?: string | null;
+                actor_id?: string | null;
+                /** @description Keyset cursor: id of the last entry seen */
+                before_id?: number | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEntryOut"][];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_api_v1_audit_log_verify_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChainVerificationOut"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
     token_api_v1_auth_token_post: {
         parameters: {
             query?: never;
@@ -787,7 +1066,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AppointmentOut"][];
+                    "application/json": components["schemas"]["ScheduleEntryOut"][];
                 };
             };
             /** @description Unauthenticated */
@@ -915,6 +1194,121 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClinicOut"][];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Validation error or business rule violated */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    get_me_api_v1_patients_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnPatientRecordOut"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    get_for_clinician_api_v1_patients__patient_id__get: {
+        parameters: {
+            query: {
+                /** @description Purpose of access, recorded in the audit log */
+                reason: components["schemas"]["AccessReason"];
+            };
+            header?: never;
+            path: {
+                patient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatientSummaryOut"];
                 };
             };
             /** @description Unauthenticated */
