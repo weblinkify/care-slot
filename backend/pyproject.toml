@@ -1,0 +1,95 @@
+[project]
+name = "careslot"
+version = "0.1.0"
+description = "CareSlot: appointment booking and patient-consent service (showcase, synthetic data only)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14",
+    "psycopg[binary]>=3.2",
+    "pyjwt[crypto]>=2.10",
+    # <49: 49+ ships no x86_64-macOS wheel; building from source needs Rust + OpenSSL headers.
+    "cryptography>=46,<49",
+    "structlog>=24.4",
+    "opentelemetry-api>=1.28",
+    "opentelemetry-sdk>=1.28",
+    "opentelemetry-instrumentation-fastapi>=0.49b0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "httpx2",  # Starlette TestClient transport (httpx is deprecated there)
+    "testcontainers[postgres]>=4.8",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "import-linter>=2.1",
+    "schemathesis>=3.38",
+    "pip-audit>=2.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/careslot"]
+
+# ---------------------------------------------------------------------------
+# Ruff: one tool for lint + format so humans and agents get identical feedback.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",   # pycodestyle / pyflakes
+    "I",             # import sorting
+    "B",             # bugbear
+    "UP",            # pyupgrade
+    "S",             # bandit-style security checks
+    "N",             # naming
+    "SIM",           # simplifications
+    "RUF",
+    "T20",           # no print() – use structured logging
+    "DTZ",           # timezone-aware datetimes only (appointments cross DST!)
+]
+ignore = ["B008"]  # FastAPI's Depends() in defaults is idiomatic
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]  # asserts and fake secrets are fine in tests
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Header"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+packages = ["careslot"]
+
+[[tool.mypy.overrides]]
+module = ["testcontainers.*", "schemathesis.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "integration: needs Docker (Testcontainers PostgreSQL)",
+    "contract: API contract tests generated from the OpenAPI spec",
+]
+addopts = "-ra --strict-markers"
+filterwarnings = ["error::DeprecationWarning:careslot.*"]
+
+[tool.coverage.run]
+source = ["careslot"]
+branch = true
