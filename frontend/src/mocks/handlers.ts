@@ -8,6 +8,7 @@ import { http, HttpResponse } from "msw";
 import type {
   AccessReason,
   Appointment,
+  CancellationReason,
   ConsentOverview,
   ConsentPurpose,
   ConsentState,
@@ -36,6 +37,12 @@ import {
 const API = "*/api/v1";
 const DEMO_PASSWORD = "demo-password";
 const CLINICAL_REASONS: AccessReason[] = ["treatment", "appointment-preparation"];
+const CANCELLATION_REASONS: CancellationReason[] = [
+  "scheduling-conflict",
+  "feeling-better",
+  "booked-elsewhere",
+  "other",
+];
 
 function problem(status: number, code: string, title: string, detail?: string) {
   return HttpResponse.json(
@@ -199,6 +206,7 @@ export function createHandlers(
         status: "booked",
         created_at: now().toISOString(),
         cancelled_at: null,
+        cancellation_reason: null,
       };
       state.appointments.push(appt);
       await auditAppointment(user, "appointment.book", appt);
@@ -212,8 +220,15 @@ export function createHandlers(
       if (!appt) return notFound();
       const blocked = changeBlocked(appt);
       if (blocked) return blocked;
+      const body = (await request.json().catch(() => null)) as {
+        reason?: CancellationReason | null;
+      } | null;
+      const reason = body?.reason ?? null;
+      if (reason !== null && !CANCELLATION_REASONS.includes(reason))
+        return problem(422, "validation-error", "Request validation failed");
       appt.status = "cancelled";
       appt.cancelled_at = now().toISOString();
+      appt.cancellation_reason = reason;
       await auditAppointment(user, "appointment.cancel", appt);
       return HttpResponse.json(publicView(appt));
     }),

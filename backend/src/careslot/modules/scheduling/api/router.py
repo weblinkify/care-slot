@@ -15,6 +15,7 @@ from careslot.modules.audit import get_audit_sink
 from careslot.modules.scheduling.api.schemas import (
     AppointmentOut,
     BookAppointmentIn,
+    CancelAppointmentIn,
     ClinicOut,
     RescheduleAppointmentIn,
     ScheduleEntryOut,
@@ -123,8 +124,16 @@ def reschedule(
     responses={409: PROBLEM_RESPONSES[409]},
     dependencies=[require_role(Role.PATIENT)],
 )
-def cancel(appointment_id: UUID, principal: CurrentPrincipal, service: Service) -> AppointmentOut:
-    return AppointmentOut.of(service.cancel(principal, appointment_id))
+def cancel(
+    appointment_id: UUID,
+    principal: CurrentPrincipal,
+    service: Service,
+    body: CancelAppointmentIn | None = None,
+) -> AppointmentOut:
+    # Body is optional so existing v1 clients that POST without one keep working: adding an
+    # optional field is a backwards-compatible change; making it required would need /api/v2.
+    reason = body.reason if body else None
+    return AppointmentOut.of(service.cancel(principal, appointment_id, reason))
 
 
 @router.get(

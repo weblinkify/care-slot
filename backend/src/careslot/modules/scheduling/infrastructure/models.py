@@ -58,6 +58,12 @@ class AppointmentRow(Base):
         ),
         Index("ix_sched_appointments_clinician_start", "clinician_id", "starts_at"),
         CheckConstraint("status IN ('booked', 'cancelled')", name="valid_status"),
+        # Defence in depth: the database also refuses anything outside the closed list.
+        CheckConstraint(
+            "cancellation_reason IN "
+            "('scheduling-conflict', 'feeling-better', 'booked-elsewhere', 'other')",
+            name="valid_cancellation_reason",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
@@ -69,3 +75,4 @@ class AppointmentRow(Base):
     status: Mapped[str] = mapped_column(String(16))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime())
     cancelled_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    cancellation_reason: Mapped[str | None] = mapped_column(String(32))

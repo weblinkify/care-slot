@@ -1,11 +1,11 @@
 import { useState } from "react";
 
 import { ApiError } from "@/api/client";
-import type { Appointment } from "@/api/types";
+import type { Appointment, CancellationReason } from "@/api/types";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Field } from "@/components/ui/Field";
+import { Field, Select } from "@/components/ui/Field";
 import { Spinner } from "@/components/ui/Spinner";
 import { cn } from "@/lib/cn";
 import { formatDateTime, isoDateInClinic } from "@/lib/format";
@@ -15,24 +15,20 @@ import { SlotPicker } from "./SlotPicker";
 
 export function MyAppointmentsPage() {
   const appointments = useMyAppointments();
-  const cancel = useCancel();
-  const [rescheduling, setRescheduling] = useState<string | null>(null);
+  // At most one panel open at a time: rescheduling or cancelling one appointment.
+  const [panel, setPanel] = useState<{ id: string; kind: "reschedule" | "cancel" } | null>(null);
+  const toggle = (id: string, kind: "reschedule" | "cancel") => {
+    setPanel(panel?.id === id && panel.kind === kind ? null : { id, kind });
+  };
 
   if (appointments.isLoading) return <Spinner label="Loading appointments" />;
   if (appointments.error) return <Alert tone="danger">Could not load appointments.</Alert>;
 
   const items = appointments.data ?? [];
-  const mutationError = cancel.error;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">My appointments</h1>
-
-      {mutationError && (
-        <Alert tone="danger">
-          {mutationError instanceof ApiError ? mutationError.message : "Something went wrong."}
-        </Alert>
-      )}
 
       {items.length === 0 ? (
         <Alert>You have no appointments yet.</Alert>
@@ -51,9 +47,9 @@ export function MyAppointmentsPage() {
                       <Button
                         variant="secondary"
                         size="sm"
-                        aria-expanded={rescheduling === appt.id}
+                        aria-expanded={panel?.id === appt.id && panel.kind === "reschedule"}
                         onClick={() => {
-                          setRescheduling(rescheduling === appt.id ? null : appt.id);
+                          toggle(appt.id, "reschedule");
                         }}
                       >
                         Reschedule
@@ -61,9 +57,9 @@ export function MyAppointmentsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={cancel.isPending}
+                        aria-expanded={panel?.id === appt.id && panel.kind === "cancel"}
                         onClick={() => {
-                          cancel.mutate(appt.id);
+                          toggle(appt.id, "cancel");
                         }}
                       >
                         Cancel
@@ -75,11 +71,19 @@ export function MyAppointmentsPage() {
                     </div>
                   )}
                 </div>
-                {rescheduling === appt.id && (
+                {panel?.id === appt.id && panel.kind === "reschedule" && (
                   <ReschedulePanel
                     appointment={appt}
                     onDone={() => {
-                      setRescheduling(null);
+                      setPanel(null);
+                    }}
+                  />
+                )}
+                {panel?.id === appt.id && panel.kind === "cancel" && (
+                  <CancelPanel
+                    appointment={appt}
+                    onDone={() => {
+                      setPanel(null);
                     }}
                   />
                 )}
@@ -88,6 +92,61 @@ export function MyAppointmentsPage() {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+const REASONS: { value: CancellationReason; label: string }[] = [
+  { value: "scheduling-conflict", label: "The time no longer suits me" },
+  { value: "feeling-better", label: "I no longer need the appointment" },
+  { value: "booked-elsewhere", label: "I booked care elsewhere" },
+  { value: "other", label: "Other" },
+];
+
+/** Optional reason from a fixed list - deliberately no free text (see the walkthrough doc). */
+function CancelPanel({ appointment, onDone }: { appointment: Appointment; onDone: () => void }) {
+  const [reason, setReason] = useState<CancellationReason | "">("");
+  const cancel = useCancel();
+
+  return (
+    <div className="space-y-4 rounded-control bg-surface-muted p-4">
+      <Field label="Reason (optional)" hint="Helps the clinic plan. You can skip it.">
+        {({ id, className, describedBy }) => (
+          <Select
+            id={id}
+            className={cn(className, "sm:max-w-80")}
+            aria-describedby={describedBy}
+            value={reason}
+            onChange={(e) => {
+              setReason(e.target.value as CancellationReason | "");
+            }}
+          >
+            <option value="">Prefer not to say</option>
+            {REASONS.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+      {cancel.error && (
+        <Alert tone="danger">
+          {cancel.error instanceof ApiError ? cancel.error.message : "Could not cancel."}
+        </Alert>
+      )}
+      <Button
+        variant="danger"
+        disabled={cancel.isPending}
+        onClick={() => {
+          cancel.mutate(
+            { appointmentId: appointment.id, ...(reason ? { reason } : {}) },
+            { onSuccess: onDone },
+          );
+        }}
+      >
+        Confirm cancellation
+      </Button>
     </div>
   );
 }

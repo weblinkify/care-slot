@@ -178,3 +178,45 @@ def test_patient_cannot_read_clinician_schedule(client: TestClient) -> None:
         headers=bearer(uuid4(), Role.PATIENT),
     )
     assert resp.status_code == 403
+
+
+def test_cancel_with_a_reason_from_the_closed_list(client: TestClient, world: World) -> None:
+    me = bearer(uuid4(), Role.PATIENT)
+    appt = client.post(
+        "/api/v1/appointments", json={"slot_id": str(world.slot_ids[0])}, headers=me
+    ).json()
+
+    resp = client.post(
+        f"/api/v1/appointments/{appt['id']}/cancel",
+        json={"reason": "scheduling-conflict"},
+        headers=me,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["cancellation_reason"] == "scheduling-conflict"
+
+
+def test_free_text_reasons_are_rejected(client: TestClient, world: World) -> None:
+    # Data minimisation: a text box would collect health details we must not store.
+    me = bearer(uuid4(), Role.PATIENT)
+    appt = client.post(
+        "/api/v1/appointments", json={"slot_id": str(world.slot_ids[0])}, headers=me
+    ).json()
+    resp = client.post(
+        f"/api/v1/appointments/{appt['id']}/cancel",
+        json={"reason": "my back pain got worse"},
+        headers=me,
+    )
+    assert resp.status_code == 422
+    assert "back pain" not in resp.text  # and the input is not echoed back
+
+
+def test_cancel_without_a_body_still_works_for_existing_clients(
+    client: TestClient, world: World
+) -> None:
+    me = bearer(uuid4(), Role.PATIENT)
+    appt = client.post(
+        "/api/v1/appointments", json={"slot_id": str(world.slot_ids[0])}, headers=me
+    ).json()
+    resp = client.post(f"/api/v1/appointments/{appt['id']}/cancel", headers=me)
+    assert resp.status_code == 200
+    assert resp.json()["cancellation_reason"] is None

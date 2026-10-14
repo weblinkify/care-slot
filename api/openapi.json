@@ -16,6 +16,16 @@
       },
       "AppointmentOut": {
         "properties": {
+          "cancellation_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CancellationReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "cancelled_at": {
             "anyOf": [
               {
@@ -70,7 +80,8 @@
           "ends_at",
           "status",
           "created_at",
-          "cancelled_at"
+          "cancelled_at",
+          "cancellation_reason"
         ],
         "title": "AppointmentOut",
         "type": "object"
@@ -179,6 +190,35 @@
         ],
         "title": "BookAppointmentIn",
         "type": "object"
+      },
+      "CancelAppointmentIn": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CancellationReason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional, from a fixed list (no free text by design)."
+          }
+        },
+        "title": "CancelAppointmentIn",
+        "type": "object"
+      },
+      "CancellationReason": {
+        "description": "Why a patient cancelled. A closed list on purpose - never free text: patients would\nwrite health details into a text box (\"my back pain got worse\"), turning a scheduling\nfield into special-category health data we neither need nor want (data minimisation).",
+        "enum": [
+          "scheduling-conflict",
+          "feeling-better",
+          "booked-elsewhere",
+          "other"
+        ],
+        "title": "CancellationReason",
+        "type": "string"
       },
       "ChainVerificationOut": {
         "properties": {
@@ -598,6 +638,16 @@
       "ScheduleEntryOut": {
         "description": "Clinician view: includes the patient id so the clinician can open the record - an\nexplicit, reason-stated and audited action (GET /patients/{id}).",
         "properties": {
+          "cancellation_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CancellationReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "cancelled_at": {
             "anyOf": [
               {
@@ -658,6 +708,7 @@
           "status",
           "created_at",
           "cancelled_at",
+          "cancellation_reason",
           "patient_id"
         ],
         "title": "ScheduleEntryOut",
@@ -1043,6 +1094,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CancelAppointmentIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {

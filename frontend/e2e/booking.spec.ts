@@ -34,6 +34,8 @@ test("patient books, sees and cancels an appointment", async ({ page }) => {
   await expectNoA11yViolations(page);
 
   await card.getByRole("button", { name: /^Cancel/ }).click();
+  await card.getByLabel("Reason (optional)").selectOption("scheduling-conflict");
+  await card.getByRole("button", { name: "Confirm cancellation" }).click();
   await expect(card).toHaveCount(0);
   await expect(atTime.filter({ hasText: "cancelled" }).first()).toBeVisible();
 });

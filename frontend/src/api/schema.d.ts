@@ -306,6 +306,7 @@ export interface components {
         AccessReason: "self-service" | "treatment" | "appointment-preparation" | "audit-review" | "data-subject-request" | "system-job";
         /** AppointmentOut */
         AppointmentOut: {
+            cancellation_reason: components["schemas"]["CancellationReason"] | null;
             /** Cancelled At */
             cancelled_at: string | null;
             /**
@@ -379,6 +380,19 @@ export interface components {
              */
             slot_id: string;
         };
+        /** CancelAppointmentIn */
+        CancelAppointmentIn: {
+            /** @description Optional, from a fixed list (no free text by design). */
+            reason?: components["schemas"]["CancellationReason"] | null;
+        };
+        /**
+         * CancellationReason
+         * @description Why a patient cancelled. A closed list on purpose - never free text: patients would
+         *     write health details into a text box ("my back pain got worse"), turning a scheduling
+         *     field into special-category health data we neither need nor want (data minimisation).
+         * @enum {string}
+         */
+        CancellationReason: "scheduling-conflict" | "feeling-better" | "booked-elsewhere" | "other";
         /** ChainVerificationOut */
         ChainVerificationOut: {
             /** Entries Checked */
@@ -569,6 +583,7 @@ export interface components {
          *     explicit, reason-stated and audited action (GET /patients/{id}).
          */
         ScheduleEntryOut: {
+            cancellation_reason: components["schemas"]["CancellationReason"] | null;
             /** Cancelled At */
             cancelled_at: string | null;
             /**
@@ -882,7 +897,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CancelAppointmentIn"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
