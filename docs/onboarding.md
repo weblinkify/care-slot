@@ -57,28 +57,33 @@ Then break something on purpose: remove the ownership check in
 `SchedulingService._get_own_appointment` and run `make test-unit`. Watch which tests catch
 it, then put it back. This is the fastest way to trust the safety net.
 
-## Afternoon: your first task, "add a cancellation reason"
+## Afternoon: your first task, "add a visit type"
 
-> Patients should be able to say *why* they cancel, so clinics can see why slots go unused.
+> Clinicians offer some slots as **video** visits. Patients must see whether a slot is
+> in-person or video before booking.
 
 It is small, but it touches every layer: **domain → API → migration → tests → UI**.
 
-1. Branch: `git switch -c feat/cancellation-reason`.
-2. Before coding, write down your answers to: free text or a list? Required or optional? Is it
-   a breaking API change? (Hint: this is health care. Think about what patients would type.)
-3. **Domain:** add the reason to `Appointment.cancel` and the `AppointmentCancelled` event.
-   Write the unit test first.
-4. **API:** accept it in `POST /appointments/{id}/cancel` without breaking existing clients;
-   return it in `AppointmentOut`; run `make openapi` and read the contract diff.
-5. **Migration:** *ask your buddy first* (team rule). Add a nullable column; check that it is
-   safe for a rolling deploy; test upgrade, downgrade and upgrade.
-6. **Tests:** an integration test for the happy path and one proving what must be rejected.
-7. **UI:** let the patient pick a reason when cancelling. Use the existing `Field`, `Select`,
-   `Button` primitives and design tokens; keep it keyboard-accessible.
-8. `make check && make e2e`, then open a PR with the template.
+First, read the worked example of a feature with exactly the same shape:
+**[example-feature-walkthrough.md](example-feature-walkthrough.md)** ("add a cancellation
+reason", now shipped). Then:
 
-Stuck, or finished? Compare with the reference solution and its explanation:
-**[example-feature-walkthrough.md](example-feature-walkthrough.md)**.
+1. Branch: `git switch -c feat/visit-type`.
+2. Before coding, write down your answers to: closed list or free text? What is the default for
+   existing slots? Is it a breaking API change? Who needs to see it?
+3. **Domain:** add a `VisitType` to `Slot` (and expose it on `Appointment`). Write the unit test
+   first.
+4. **API:** return it on `SlotOut` and `AppointmentOut` without breaking existing clients;
+   run `make openapi` and read the contract diff.
+5. **Migration:** *ask your buddy first* (team rule). Add the column with a safe default for
+   existing rows; check it is safe for a rolling deploy; test upgrade, downgrade and upgrade.
+   Remember that Alembic autogenerate does not detect CHECK constraints.
+6. **Seed:** make some synthetic slots video slots.
+7. **Tests:** an integration test for the round trip, and a negative test for an invalid value.
+8. **UI:** show the visit type in the slot picker and on "My appointments". Use existing
+   primitives and tokens (perhaps a small badge); make sure screen readers announce it, not
+   just an icon.
+9. `make check && make e2e`, then open a PR with the template.
 
 ## By the end of week one
 

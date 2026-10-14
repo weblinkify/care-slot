@@ -1,16 +1,15 @@
 # Worked example: "Add a cancellation reason"
 
-This is the reference solution to the [onboarding](onboarding.md) first task. It walks through
-one small feature across **every layer** and explains *why* each layer exists. Try the task
-yourself first, then compare:
+A worked example of one small feature across **every layer**, explaining *why* each layer
+exists. It is the guide for the [onboarding](onboarding.md) first task ("add a visit type"),
+which has exactly the same shape.
+
+The feature is shipped. See the whole change in one view:
 
 ```bash
-git fetch origin
-git diff main...origin/example/cancellation-reason      # the complete, tested change
+git log --oneline --grep "cancellation reason"
+git show b1d6542 --stat        # the complete, tested change
 ```
-
-The branch passes the full gate: unit, integration, contract and E2E tests, lint and types.
-It is deliberately not merged, so the task stays available for the next new developer.
 
 ---
 
@@ -165,4 +164,5 @@ make check && make e2e
 
 Then fill in the PR template, including **AI assistance used?** if you used a tool. Expect
 review questions like "why not free text?" or "is the migration safe for a rolling deploy?".
-This document is the answer key.
+Your visit-type PR will get the same questions; this document shows the kind of answers
+reviewers look for.

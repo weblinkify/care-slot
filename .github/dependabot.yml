@@ -6,12 +6,14 @@ updates:
   - package-ecosystem: uv
     directory: /backend
     schedule: { interval: weekly }
+    open-pull-requests-limit: 2 # keep bot noise (and notification e-mails) down
     groups:
       python-minor-and-patch: { update-types: [minor, patch] }
 
   - package-ecosystem: npm
     directory: /frontend
     schedule: { interval: weekly }
+    open-pull-requests-limit: 2
     groups:
       npm-minor-and-patch: { update-types: [minor, patch] }
     ignore:
@@ -26,11 +28,15 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 1
+    groups:
+      actions: { patterns: ["*"] } # one PR for all action bumps
 
   - package-ecosystem: docker
     directories: [/backend, /frontend]
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 1
     ignore:
       # The runtime Python is pinned by requires-python (3.12); upgrade deliberately.
       - dependency-name: "python"
