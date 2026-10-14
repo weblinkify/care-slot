@@ -50,7 +50,7 @@ login_limiter = RateLimiter(limit=5, window_seconds=60)
 
 
 class TokenRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=128)
 
@@ -70,7 +70,7 @@ router = APIRouter(prefix="/auth", tags=["mock identity provider"])
     "/token",
     response_model=TokenResponse,
     summary="Exchange demo credentials for an access token (mock IdP, non-production only)",
-    responses={401: PROBLEM_RESPONSES[401], 429: {"description": "Too many attempts"}},
+    responses={401: PROBLEM_RESPONSES[401], 429: PROBLEM_RESPONSES[429]},
 )
 def token(body: TokenRequest, request: Request) -> TokenResponse:
     client = request.client.host if request.client else "unknown"

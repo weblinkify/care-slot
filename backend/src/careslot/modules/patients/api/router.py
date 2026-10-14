@@ -53,7 +53,7 @@ class PatientSummaryOut(BaseModel):
 
 
 class ErasureRequestIn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
     # An explicit flag in the body so a stray or replayed POST cannot erase anyone.
     confirm: Literal[True]
 

@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StrictBool
 from sqlalchemy.orm import Session
 
 from careslot.modules.audit import get_audit_sink
@@ -65,7 +65,9 @@ class ConsentOverviewOut(BaseModel):
 
 class ConsentDecisionIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    granted: bool
+    # StrictBool: consent must be an unambiguous JSON boolean - `0`, `"false"` or `"no"` are
+    # rejected instead of being coerced (GDPR: consent is an *unambiguous* indication).
+    granted: StrictBool
 
 
 router = APIRouter(

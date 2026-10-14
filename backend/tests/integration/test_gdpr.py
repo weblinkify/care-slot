@@ -149,3 +149,13 @@ def test_retention_job_deletes_only_expired_booking_data(session: Session) -> No
     assert session.get(SlotRow, recent) is not None
     assert session.get(SlotRow, old) is None
     assert session.get(SlotRow, unused_old) is None
+
+
+@pytest.mark.parametrize("value", [0, 1, "true", "no", None])
+def test_consent_must_be_an_unambiguous_boolean(
+    client: TestClient, session: Session, value: object
+) -> None:
+    # Found by the contract tests: lax parsing turned {"granted": 0} into a decision.
+    me = bearer(register(session, synthetic_code()), Role.PATIENT)
+    resp = client.put("/api/v1/consents/research", json={"granted": value}, headers=me)
+    assert resp.status_code == 422
