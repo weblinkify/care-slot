@@ -6,7 +6,7 @@ the composition root's knowledge, not of any module.
 
 import importlib
 
-MODEL_MODULES: tuple[str, ...] = ()
+MODEL_MODULES: tuple[str, ...] = ("careslot.modules.scheduling.infrastructure.models",)
 
 
 def import_all_models() -> None:

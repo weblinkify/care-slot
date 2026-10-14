@@ -8,7 +8,8 @@ services:
       POSTGRES_USER: careslot
       POSTGRES_PASSWORD: careslot  # local-only throwaway credential
       POSTGRES_DB: careslot
-    ports: ["5432:5432"]
+    # 5433 on the host so it never collides with a locally installed PostgreSQL.
+    ports: ["${CARESLOT_DB_PORT:-5433}:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U careslot"]
@@ -18,7 +19,9 @@ services:
 
   api:
     build: ./backend
-    env_file: [.env]
+    env_file:
+      - path: .env
+        required: false  # defaults work without it; copy .env.example to override
     environment:
       CARESLOT_DATABASE_URL: postgresql+psycopg://careslot:careslot@db:5432/careslot
     depends_on:

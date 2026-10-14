@@ -16,14 +16,17 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CARESLOT_", env_file=".env", extra="ignore")
 
     environment: Literal["local", "test", "staging", "production"] = "local"
-    database_url: str = "postgresql+psycopg://careslot:careslot@localhost:5432/careslot"
+    database_url: str = "postgresql+psycopg://careslot:careslot@localhost:5433/careslot"
     log_level: str = "INFO"
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+
+    # Authentication. Outside local/test the public key MUST be provided (fail fast).
+    jwt_issuer: str = "careslot-mock-idp"
+    jwt_audience: str = "careslot-api"
+    jwt_public_key: str | None = None
+    idp_private_key: SecretStr | None = None
 
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-
-
-__all__ = ["SecretStr", "Settings", "get_settings"]
