@@ -13,6 +13,12 @@ export function AppShell({ nav, children }: { nav?: ReactNode; children: ReactNo
       >
         Skip to content
       </a>
+      {import.meta.env.VITE_DEMO_MODE === "true" && (
+        <p className="bg-brand-soft px-4 py-2 text-center text-sm text-ink">
+          <strong className="font-semibold">Demo mode.</strong> Data is synthetic and simulated in
+          your browser; reloading the page resets it.
+        </p>
+      )}
       <header className="border-b border-line bg-surface">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
           <span className="flex items-center gap-2 font-semibold">

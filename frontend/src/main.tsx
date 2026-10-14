@@ -21,6 +21,12 @@ const queryClient = new QueryClient({
 const root = document.getElementById("root");
 if (!root) throw new Error("#root element missing");
 
+if (import.meta.env.VITE_DEMO_MODE === "true") {
+  // Client demo build: the API runs in the browser on synthetic data (see src/mocks).
+  const { startDemoApi } = await import("./mocks/browser");
+  await startDemoApi();
+}
+
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

@@ -32,6 +32,8 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       // Personal data must never reach the browser console (AGENTS.md security rules).
       "no-console": "error",
+      // Allow `const { secret, ...safe } = obj` - the idiomatic way to omit a field.
+      "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true }],
     },
   },
   {
