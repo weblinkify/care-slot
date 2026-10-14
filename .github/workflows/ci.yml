@@ -131,3 +131,19 @@ jobs:
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.58.1 \
             image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
             careslot-${{ matrix.image }}:${{ github.sha }}
+
+  terraform:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, prod]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - name: Format
+        run: terraform -chdir=infra/terraform fmt -recursive -check
+      - name: Validate
+        working-directory: infra/terraform/environments/${{ matrix.environment }}
+        run: terraform init -backend=false -input=false && terraform validate
