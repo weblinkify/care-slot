@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 from careslot.modules.scheduling.application.ports import EventPublisher, SchedulingRepository
 from careslot.modules.scheduling.domain.model import (
     Appointment,
+    AppointmentStatus,
     Clinic,
     Clinician,
     Slot,
@@ -123,6 +124,48 @@ class SchedulingService:
         self._record_appointment(principal, "appointment.cancel", appointment)
         self._flush_events(appointment)
         return appointment
+
+    # --- system operations (no principal: triggered by events and scheduled jobs) ------------
+
+    def cancel_future_for_erased_patient(self, patient_id: UUID) -> int:
+        now = self._clock()
+        appointments = [
+            a
+            for a in self._repo.list_future_for_patient(patient_id, now)
+            if a.status is AppointmentStatus.BOOKED
+        ]
+        for appointment in appointments:
+            appointment.cancel_by_system(now=now)
+            self._repo.save(appointment)
+            self._audit(
+                AuditRecord(
+                    actor=None,
+                    action="appointment.cancel",
+                    resource_type="appointment",
+                    resource_id=str(appointment.id),
+                    patient_id=patient_id,
+                    reason=AccessReason.DATA_SUBJECT_REQUEST,
+                )
+            )
+            self._flush_events(appointment)
+        return len(appointments)
+
+    def purge_expired(self, retention: timedelta) -> tuple[int, int]:
+        """Storage limitation (GDPR art. 5(1)(e)): delete appointments - and unused slots -
+        that ended more than `retention` ago. Returns (appointments, slots) deleted."""
+        cutoff = self._clock() - retention
+        appointments, slots = self._repo.purge_ended_before(cutoff)
+        self._audit(
+            AuditRecord(
+                actor=None,
+                action="retention.purge",
+                resource_type="appointment",
+                resource_id=f"ended-before:{cutoff.date().isoformat()}",
+                patient_id=None,
+                reason=AccessReason.SYSTEM_JOB,
+            )
+        )
+        return appointments, slots
 
     # --- helpers -------------------------------------------------------------------------
 

@@ -10,7 +10,7 @@ from careslot.modules.scheduling.application.services import (
     AppointmentNotFoundError,
     SchedulingService,
 )
-from careslot.modules.scheduling.domain.model import SlotUnavailableError
+from careslot.modules.scheduling.domain.model import Appointment, SlotUnavailableError
 from careslot.shared.audit import AccessReason
 from careslot.shared.errors import BusinessRuleError, ForbiddenError
 from careslot.shared.principal import Principal, Role
@@ -201,3 +201,38 @@ def test_denied_access_writes_no_audit_entry(
     with pytest.raises(AppointmentNotFoundError):
         service.get_appointment(patient(), appt.id)
     assert audit.records == []  # nothing was disclosed, so nothing to audit as an access
+
+
+def test_erasure_cancels_only_future_bookings_ignoring_the_cutoff(
+    service: SchedulingService, repo: FakeSchedulingRepository, audit: RecordingAudit
+) -> None:
+    me = patient()
+    soon = service.book(me, repo.make_slot(timedelta(minutes=30)).id)  # inside the 2h cut-off
+    later = service.book(me, repo.make_slot(timedelta(days=3)).id)
+    other = service.book(patient(), repo.make_slot(timedelta(days=1)).id)
+    audit.records.clear()
+
+    assert service.cancel_future_for_erased_patient(me.subject) == 2
+
+    statuses = {a.id: a.status.value for a in repo.appointments.values()}
+    assert statuses == {soon.id: "cancelled", later.id: "cancelled", other.id: "booked"}
+    assert {(r.actor, r.reason) for r in audit.records} == {
+        (None, AccessReason.DATA_SUBJECT_REQUEST)
+    }
+
+
+def test_retention_purges_old_data_and_records_it(
+    service: SchedulingService, repo: FakeSchedulingRepository, audit: RecordingAudit
+) -> None:
+    old_slot = repo.make_slot(timedelta(days=-800))
+    repo.make_slot(timedelta(days=-900))  # unused old slot
+    recent = repo.make_slot(timedelta(days=-10))
+    for slot in (old_slot, recent):
+        appt = Appointment.book(
+            patient_id=uuid4(), slot=slot, now=slot.starts_at - timedelta(days=1)
+        )
+        repo.add(appt)
+
+    assert service.purge_expired(timedelta(days=730)) == (1, 2)
+    assert [a.slot_id for a in repo.appointments.values()] == [recent.id]
+    assert audit.actions == ["retention.purge"]

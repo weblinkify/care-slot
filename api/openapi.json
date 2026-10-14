@@ -269,6 +269,158 @@
         "title": "ClinicianOut",
         "type": "object"
       },
+      "ConsentDecisionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "granted": {
+            "title": "Granted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "granted"
+        ],
+        "title": "ConsentDecisionIn",
+        "type": "object"
+      },
+      "ConsentDecisionOut": {
+        "properties": {
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          },
+          "granted": {
+            "title": "Granted",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/ConsentPurpose"
+          }
+        },
+        "required": [
+          "id",
+          "purpose",
+          "granted",
+          "decided_at",
+          "policy_version"
+        ],
+        "title": "ConsentDecisionOut",
+        "type": "object"
+      },
+      "ConsentOverviewOut": {
+        "properties": {
+          "current": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentStateOut"
+            },
+            "title": "Current",
+            "type": "array"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentDecisionOut"
+            },
+            "title": "History",
+            "type": "array"
+          }
+        },
+        "required": [
+          "current",
+          "history"
+        ],
+        "title": "ConsentOverviewOut",
+        "type": "object"
+      },
+      "ConsentPurpose": {
+        "enum": [
+          "regional-record-sharing",
+          "research",
+          "ai-summaries"
+        ],
+        "title": "ConsentPurpose",
+        "type": "string"
+      },
+      "ConsentStateOut": {
+        "properties": {
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "granted": {
+            "title": "Granted",
+            "type": "boolean"
+          },
+          "policy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Version"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/ConsentPurpose"
+          }
+        },
+        "required": [
+          "purpose",
+          "granted",
+          "decided_at",
+          "policy_version"
+        ],
+        "title": "ConsentStateOut",
+        "type": "object"
+      },
+      "ErasureRequestIn": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "const": true,
+            "title": "Confirm",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "confirm"
+        ],
+        "title": "ErasureRequestIn",
+        "type": "object"
+      },
+      "ErasureResultOut": {
+        "properties": {
+          "erased_at": {
+            "format": "date-time",
+            "title": "Erased At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "erased_at"
+        ],
+        "title": "ErasureResultOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1606,6 +1758,132 @@
         ]
       }
     },
+    "/api/v1/consents": {
+      "get": {
+        "operationId": "overview_api_v1_consents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentOverviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Current consents and full history",
+        "tags": [
+          "consent"
+        ]
+      }
+    },
+    "/api/v1/consents/{purpose}": {
+      "put": {
+        "operationId": "decide_api_v1_consents__purpose__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ConsentPurpose"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentDecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentStateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Grant or withdraw consent for one purpose (idempotent)",
+        "tags": [
+          "consent"
+        ]
+      }
+    },
     "/api/v1/patients/me": {
       "get": {
         "operationId": "get_me_api_v1_patients_me_get",
@@ -1660,6 +1938,96 @@
           }
         ],
         "summary": "The calling patient's own record",
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/api/v1/patients/me/erasure": {
+      "post": {
+        "operationId": "erase_me_api_v1_patients_me_erasure_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ErasureRequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErasureResultOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Right to erasure: anonymise the calling patient (irreversible)",
         "tags": [
           "patients"
         ]

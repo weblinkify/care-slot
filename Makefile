@@ -6,7 +6,7 @@ BACKEND := cd backend &&
 FRONTEND := cd frontend &&
 
 .DEFAULT_GOAL := help
-.PHONY: help install env up down logs seed migrate test test-unit test-integration test-contract \
+.PHONY: help install env up down reset logs seed migrate test test-unit test-integration test-contract \
         e2e lint fmt typecheck check openapi
 
 help: ## Show this help
@@ -29,6 +29,12 @@ up: env ## Start the whole stack (db, api, web) with Docker Compose
 
 down: ## Stop the stack
 	docker compose down
+
+reset: ## Wipe local data and start fresh: stop, delete the DB volume, start, migrate, seed
+	docker compose down -v
+	$(MAKE) up
+	@until curl -sf http://localhost:8000/ready >/dev/null; do sleep 2; done
+	$(MAKE) seed
 
 logs: ## Tail stack logs
 	docker compose logs -f

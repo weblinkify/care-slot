@@ -57,6 +57,22 @@ class PatientService:
         self._record(principal, "patient.read", patient.id, reason)
         return patient
 
+    def erase_own_record(self, principal: Principal) -> Patient:
+        """Right to erasure, self-service. Anonymises the patient and lets other modules react
+        (PatientErased): scheduling cancels future appointments, consent drops its history.
+        The audit log is kept - it is pseudonymous (ids only) and retained under a legal
+        obligation (GDPR art. 17(3)(b)), and its hash chain stays intact."""
+        if principal.role is not Role.PATIENT:
+            raise ForbiddenError()
+        patient = self._load(principal.subject)
+        patient.erase(self._clock())
+        self._repo.save(patient)
+        self._record(principal, "patient.erase", patient.id, AccessReason.DATA_SUBJECT_REQUEST)
+        for event in patient.pending_events:
+            self._publish(event)
+        patient.pending_events.clear()
+        return patient
+
     def register(
         self, patient_id: UUID, full_name: str, identity_code: PersonalIdentityCode
     ) -> Patient:

@@ -85,6 +85,23 @@ class FakeSchedulingRepository:
             and start <= a.starts_at < end
         ]
 
+    def list_future_for_patient(self, patient_id: UUID, now: datetime) -> list[Appointment]:
+        return [
+            replace(a, pending_events=[])
+            for a in self.appointments.values()
+            if a.patient_id == patient_id and a.starts_at > now
+        ]
+
+    def purge_ended_before(self, cutoff: datetime) -> tuple[int, int]:
+        old = [k for k, a in self.appointments.items() if a.ends_at < cutoff]
+        for k in old:
+            del self.appointments[k]
+        booked_slots = {a.slot_id for a in self.appointments.values()}
+        stale = [k for k, s in self.slots.items() if s.ends_at < cutoff and k not in booked_slots]
+        for k in stale:
+            del self.slots[k]
+        return len(old), len(stale)
+
     def add(self, appointment: Appointment) -> None:
         self.appointments[appointment.id] = appointment
 

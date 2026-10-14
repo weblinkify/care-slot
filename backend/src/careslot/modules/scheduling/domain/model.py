@@ -137,6 +137,18 @@ class Appointment:
             AppointmentCancelled(appointment_id=self.id, patient_id=self.patient_id)
         )
 
+    def cancel_by_system(self, *, now: datetime) -> None:
+        """Cancellation the patient did not request (e.g. erasure). The change cut-off protects
+        the clinic from late patient changes; it does not apply when the patient no longer
+        exists in the system and will not attend."""
+        if self.status is not AppointmentStatus.BOOKED:
+            raise AppointmentNotActiveError()
+        self.status = AppointmentStatus.CANCELLED
+        self.cancelled_at = now
+        self.pending_events.append(
+            AppointmentCancelled(appointment_id=self.id, patient_id=self.patient_id)
+        )
+
     def _ensure_changeable(self, now: datetime) -> None:
         if self.status is not AppointmentStatus.BOOKED:
             raise AppointmentNotActiveError()

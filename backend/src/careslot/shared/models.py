@@ -10,6 +10,7 @@ MODEL_MODULES: tuple[str, ...] = (
     "careslot.modules.scheduling.infrastructure.models",
     "careslot.modules.patients.infrastructure.models",
     "careslot.modules.audit.infrastructure.models",
+    "careslot.modules.consent.infrastructure.models",
 )
 
 

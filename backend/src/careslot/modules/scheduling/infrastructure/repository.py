@@ -8,7 +8,7 @@ single place that knows both shapes.
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import exists, select
+from sqlalchemy import delete, exists, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -140,6 +140,24 @@ class SqlSchedulingRepository:
             .order_by(AppointmentRow.starts_at)
         ).all()
         return [_appointment(r) for r in rows]
+
+    def list_future_for_patient(self, patient_id: UUID, now: datetime) -> list[Appointment]:
+        rows = self._session.scalars(
+            select(AppointmentRow).where(
+                AppointmentRow.patient_id == patient_id, AppointmentRow.starts_at > now
+            )
+        ).all()
+        return [_appointment(r) for r in rows]
+
+    def purge_ended_before(self, cutoff: datetime) -> tuple[int, int]:
+        appointments = self._session.execute(
+            delete(AppointmentRow).where(AppointmentRow.ends_at < cutoff)
+        )
+        has_appointment = exists().where(AppointmentRow.slot_id == SlotRow.id)
+        slots = self._session.execute(
+            delete(SlotRow).where(SlotRow.ends_at < cutoff, ~has_appointment)
+        )
+        return int(appointments.rowcount), int(slots.rowcount)  # type: ignore[attr-defined]
 
     def add(self, appointment: Appointment) -> None:
         self._session.add(

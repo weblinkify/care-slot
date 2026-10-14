@@ -63,7 +63,9 @@ class EventBus:
         )
 
     def subscribe(self, event_type: type[E], handler: EventHandler[E]) -> None:
-        self._handlers[event_type].append(handler)
+        # Idempotent: the composition root may run more than once per process (tests, jobs).
+        if handler not in self._handlers[event_type]:
+            self._handlers[event_type].append(handler)
 
     def publish(self, event: DomainEvent, session: Session) -> None:
         for handler in self._handlers[type(event)]:

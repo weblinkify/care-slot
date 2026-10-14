@@ -1,8 +1,9 @@
-from typing import Annotated
+from datetime import datetime
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from careslot.modules.audit import get_audit_sink
@@ -51,6 +52,16 @@ class PatientSummaryOut(BaseModel):
     identity_code_masked: str | None
 
 
+class ErasureRequestIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    # An explicit flag in the body so a stray or replayed POST cannot erase anyone.
+    confirm: Literal[True]
+
+
+class ErasureResultOut(BaseModel):
+    erased_at: datetime
+
+
 router = APIRouter(
     prefix="/patients",
     tags=["patients"],
@@ -74,6 +85,21 @@ def _own(p: Patient) -> OwnPatientRecordOut:
 )
 def get_me(principal: CurrentPrincipal, service: Service) -> OwnPatientRecordOut:
     return _own(service.get_own_record(principal))
+
+
+@router.post(
+    "/me/erasure",
+    response_model=ErasureResultOut,
+    summary="Right to erasure: anonymise the calling patient (irreversible)",
+    responses={409: PROBLEM_RESPONSES[409]},
+    dependencies=[require_role(Role.PATIENT)],
+)
+def erase_me(
+    body: ErasureRequestIn, principal: CurrentPrincipal, service: Service
+) -> ErasureResultOut:
+    patient = service.erase_own_record(principal)
+    assert patient.erased_at is not None  # noqa: S101 - erase() always sets it
+    return ErasureResultOut(erased_at=patient.erased_at)
 
 
 @router.get(

@@ -18,6 +18,7 @@ containers =
     careslot.modules.scheduling
     careslot.modules.patients
     careslot.modules.audit
+    careslot.modules.consent
 layers =
     api
     infrastructure
@@ -31,6 +32,7 @@ type = forbidden
 source_modules = careslot.modules
 forbidden_modules = careslot.mock_idp
 
+
 # Bounded context boundary: other modules may use `careslot.modules.scheduling` (its public
 # interface, re-exported in __init__.py) but never its internals.
 [importlinter:contract:boundary-scheduling]
@@ -41,6 +43,7 @@ allow_indirect_imports = True
 source_modules =
     careslot.modules.patients
     careslot.modules.audit
+    careslot.modules.consent
 forbidden_modules =
     careslot.modules.scheduling.domain
     careslot.modules.scheduling.application
@@ -57,6 +60,7 @@ allow_indirect_imports = True
 source_modules =
     careslot.modules.scheduling
     careslot.modules.audit
+    careslot.modules.consent
 forbidden_modules =
     careslot.modules.patients.domain
     careslot.modules.patients.application
@@ -73,8 +77,26 @@ allow_indirect_imports = True
 source_modules =
     careslot.modules.scheduling
     careslot.modules.patients
+    careslot.modules.consent
 forbidden_modules =
     careslot.modules.audit.domain
     careslot.modules.audit.application
     careslot.modules.audit.infrastructure
     careslot.modules.audit.api
+
+# Bounded context boundary: other modules may use `careslot.modules.consent` (its public
+# interface, re-exported in __init__.py) but never its internals.
+[importlinter:contract:boundary-consent]
+name = Only the public interface of consent is used by other modules
+type = forbidden
+# Indirect chains via the public interface are the intended path; only direct reaches fail.
+allow_indirect_imports = True
+source_modules =
+    careslot.modules.scheduling
+    careslot.modules.patients
+    careslot.modules.audit
+forbidden_modules =
+    careslot.modules.consent.domain
+    careslot.modules.consent.application
+    careslot.modules.consent.infrastructure
+    careslot.modules.consent.api

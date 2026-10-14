@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     keks: SecretStr | None = None
     blind_index_key: SecretStr | None = None
 
+    # Storage limitation: booking data is deleted this long after the appointment ended.
+    # (The booking service is not the medical record; clinical notes have their own, much
+    # longer statutory retention in the patient record system.)
+    retention_appointment_days: int = Field(default=730, ge=30)
+
 
 @lru_cache
 def get_settings() -> Settings:
