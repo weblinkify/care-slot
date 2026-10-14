@@ -28,10 +28,11 @@ services:
     ports: ["8000:8000"]
 
   web:
-    build: ./frontend
-    environment:
-      VITE_API_URL: http://localhost:8000
-    ports: ["5173:80"]
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports: ["5173:8080"]
     depends_on: [api]
 
 volumes:
