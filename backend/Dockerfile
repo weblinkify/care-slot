@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # Multi-stage build: dependencies are resolved from the lockfile in a builder stage; the runtime
 # image contains only the virtualenv and source, runs as a non-root user, and has no build tools.
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /usr/local/bin/uv
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
@@ -12,7 +12,7 @@ COPY migrations ./migrations
 COPY alembic.ini ./
 RUN uv sync --frozen --no-dev
 
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 RUN useradd --create-home --uid 10001 careslot
 WORKDIR /app
 COPY --from=builder --chown=careslot:careslot /app /app
