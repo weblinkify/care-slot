@@ -29,6 +29,12 @@ jobs:
         run: cd backend && uv run mypy
       - name: Unit + integration tests (Testcontainers PostgreSQL)
         run: cd backend && uv run pytest --cov --cov-report=term-missing
+      - name: OpenAPI contract is committed and current
+        # API-first: the spec is reviewed in PRs. Code that changes the API without updating
+        # api/openapi.json fails here.
+        run: |
+          cd backend && uv run python -m careslot.openapi > ../api/openapi.json
+          git diff --exit-code -- ../api/openapi.json
 
   frontend:
     runs-on: ubuntu-latest
@@ -46,8 +52,37 @@ jobs:
         run: cd frontend && npm run typecheck
       - name: Unit tests (vitest)
         run: cd frontend && npm test
+      - name: Generated API types match the contract
+        run: cd frontend && npm run gen:api && git diff --exit-code -- src/api/schema.d.ts
       - name: Build
         run: cd frontend && npm run build
+
+  e2e:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start stack (db, api, web) and seed synthetic data
+        run: |
+          docker compose up --build -d --wait db api
+          docker compose up --build -d web
+          docker compose exec -T api python -m careslot.seed
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci && npx playwright install --with-deps chromium
+      - name: Playwright (booking journey + axe WCAG 2.2 AA)
+        run: cd frontend && npx playwright test
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
+      - if: failure()
+        run: docker compose logs api
 
   security:
     runs-on: ubuntu-latest

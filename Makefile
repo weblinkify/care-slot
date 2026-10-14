@@ -7,7 +7,7 @@ FRONTEND := cd frontend &&
 
 .DEFAULT_GOAL := help
 .PHONY: help install up down logs seed migrate test test-unit test-integration test-contract \
-        e2e lint fmt typecheck check
+        e2e lint fmt typecheck check openapi
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -44,6 +44,10 @@ test-integration: ## Integration tests against real PostgreSQL (Testcontainers)
 
 test-contract: ## API contract tests generated from the OpenAPI spec
 	$(BACKEND) $(UV) run pytest tests/contract -q -m contract
+
+openapi: ## Regenerate api/openapi.json and the frontend's TypeScript types from the code
+	$(BACKEND) $(UV) run python -m careslot.openapi > ../api/openapi.json
+	$(FRONTEND) npm run gen:api
 
 e2e: ## Playwright end-to-end tests (needs `make up`)
 	$(FRONTEND) npx playwright test

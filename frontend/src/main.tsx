@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "@/App";
 import { ApiError } from "@/api/client";
+import { AuthProvider } from "@/features/auth/AuthProvider";
 
 import "./index.css";
 
@@ -23,7 +24,9 @@ if (!root) throw new Error("#root element missing");
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,
 );
