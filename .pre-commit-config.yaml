@@ -1,0 +1,37 @@
+# Fast local guardrails, identical for humans and AI agents (`make install` enables them).
+# CI runs the full gates anyway; these catch the cheap mistakes before a commit exists.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: detect-private-key
+  - repo: local
+    hooks:
+      # Same pinned container image as CI: one gitleaks version everywhere, no Go toolchain.
+      - id: gitleaks
+        name: gitleaks (staged changes)
+        entry: bash -c 'docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.24.0 protect --staged --source=/repo --config=/repo/.gitleaks.toml --redact'
+        language: system
+        pass_filenames: false
+      - id: ruff
+        name: ruff (lint + format check)
+        entry: bash -c 'cd backend && .venv/bin/ruff check . && .venv/bin/ruff format --check .'
+        language: system
+        files: ^backend/
+        pass_filenames: false
+      - id: import-boundaries
+        name: import-linter (module boundaries)
+        entry: bash -c 'cd backend && .venv/bin/lint-imports'
+        language: system
+        files: ^backend/src/
+        pass_filenames: false
+      - id: frontend-lint
+        name: eslint + prettier (incl. tailwind class order)
+        entry: bash -c 'cd frontend && npm run lint --silent'
+        language: system
+        files: ^frontend/
+        pass_filenames: false

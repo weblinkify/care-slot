@@ -1,0 +1,9 @@
+# Changes to these paths need review from the listed owners (enforced by branch protection).
+# Security-sensitive areas get a second pair of eyes, whoever - or whatever - wrote the code.
+*                                   @weblinkify
+/backend/migrations/                @weblinkify
+/backend/src/careslot/shared/crypto.py     @weblinkify
+/backend/src/careslot/shared/security.py   @weblinkify
+/backend/src/careslot/modules/audit/       @weblinkify
+/AGENTS.md                          @weblinkify
+/docs/ai-development-policy.md      @weblinkify

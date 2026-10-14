@@ -30,6 +30,7 @@ test-results/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 
 # Vercel
 .vercel

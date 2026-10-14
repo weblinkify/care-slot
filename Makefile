@@ -6,15 +6,16 @@ BACKEND := cd backend &&
 FRONTEND := cd frontend &&
 
 .DEFAULT_GOAL := help
-.PHONY: help install env up down reset logs seed migrate test test-unit test-integration test-contract \
+.PHONY: help install env up up-observability down reset logs seed migrate test test-unit test-integration test-contract \
         e2e lint fmt typecheck check openapi
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
-install: ## Install backend + frontend dependencies
+install: ## Install backend + frontend dependencies and the git pre-commit hooks
 	$(BACKEND) $(UV) sync
 	$(FRONTEND) npm ci
+	$(BACKEND) $(UV) run pre-commit install
 
 env: ## Create .env with freshly generated local-only encryption keys (if missing)
 	@test -f .env || { cp .env.example .env && \
@@ -26,6 +27,10 @@ up: env ## Start the whole stack (db, api, web) with Docker Compose
 	docker compose up --build -d
 	@echo "API  -> http://localhost:8000/api/v1/docs"
 	@echo "Web  -> http://localhost:5173"
+
+up-observability: env ## Start the stack plus Jaeger; traces at http://localhost:16686
+	CARESLOT_OTEL_EXPORTER_ENDPOINT=http://jaeger:4318 docker compose --profile observability up --build -d
+	@echo "Jaeger -> http://localhost:16686"
 
 down: ## Stop the stack
 	docker compose down

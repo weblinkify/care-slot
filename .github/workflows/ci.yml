@@ -102,3 +102,32 @@ jobs:
           node-version: 22
       - name: npm dependency audit
         run: cd frontend && npm audit --audit-level=high
+
+  containers:
+    # Build the images we would deploy, record what is inside them (SBOM) and refuse to ship
+    # known, fixable HIGH/CRITICAL vulnerabilities. Tools run from pinned images so local
+    # runs (see docs/engineering-standards.md) give the same answer as CI.
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [api, web]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: |
+          dir=$([ "${{ matrix.image }}" = api ] && echo backend || echo frontend)
+          docker build -t careslot-${{ matrix.image }}:${{ github.sha }} "$dir"
+      - name: SBOM (SPDX, Syft)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock anchore/syft:v1.18.1 \
+            careslot-${{ matrix.image }}:${{ github.sha }} -o spdx-json > sbom-${{ matrix.image }}.spdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.image }}
+          path: sbom-${{ matrix.image }}.spdx.json
+      - name: Vulnerability scan (Trivy) - fail on fixable HIGH/CRITICAL
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.58.1 \
+            image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+            careslot-${{ matrix.image }}:${{ github.sha }}
