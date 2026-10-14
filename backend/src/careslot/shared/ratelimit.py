@@ -1,5 +1,9 @@
 """Fixed-window rate limiter for brute-force-sensitive endpoints (login).
 
+Callers `check()` before doing the sensitive work and `hit()` only for the events that signal
+an attack - for login, *failed* attempts. Counting successful sign-ins would lock out
+legitimate users who sign in and out often (shared ward computers) without adding security.
+
 Deliberately simple and in-process. Limitation, stated honestly: with several API replicas
 each one counts separately, so the effective limit is N x replicas. Production would enforce
 this at the API gateway / WAF or in a shared store (Redis). The interface would not change.
@@ -36,16 +40,22 @@ class RateLimiter:
         self._hits: dict[str, tuple[float, int]] = {}
         RateLimiter.instances.append(self)
 
+    def check(self, key: str) -> None:
+        """Raise if `key` has used up its budget in the current window."""
+        now = self._clock()
+        with self._lock:
+            started, count = self._hits.get(key, (now, 0))
+            if now - started < self.window and count >= self.limit:
+                raise RateLimitedError(retry_after=max(1, int(self.window - (now - started))))
+
     def hit(self, key: str) -> None:
+        """Count one event (e.g. a failed login) against `key`."""
         now = self._clock()
         with self._lock:
             started, count = self._hits.get(key, (now, 0))
             if now - started >= self.window:
                 started, count = now, 0
-            count += 1
-            self._hits[key] = (started, count)
-            if count > self.limit:
-                raise RateLimitedError(retry_after=max(1, int(self.window - (now - started))))
+            self._hits[key] = (started, count + 1)
 
     def reset(self) -> None:
         with self._lock:

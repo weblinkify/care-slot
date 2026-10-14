@@ -44,8 +44,8 @@ DEMO_USERS: dict[str, DemoUser] = {
     "admin": DemoUser(UUID("ad000000-0000-4000-8000-000000000001"), Role.ADMIN, "Admin"),
 }
 
-# 5 attempts per minute per (client, username): slows online guessing to a crawl while a
-# real user who mistypes twice is unaffected.
+# 5 failed attempts per minute per (client, username): slows online guessing to a crawl
+# while a real user who mistypes twice is unaffected.
 login_limiter = RateLimiter(limit=5, window_seconds=60)
 
 
@@ -74,12 +74,14 @@ router = APIRouter(prefix="/auth", tags=["mock identity provider"])
 )
 def token(body: TokenRequest, request: Request) -> TokenResponse:
     client = request.client.host if request.client else "unknown"
-    login_limiter.hit(f"{client}:{body.username.lower()}")
+    limiter_key = f"{client}:{body.username.lower()}"
+    login_limiter.check(limiter_key)  # once blocked, even the right password is refused
 
     user = DEMO_USERS.get(body.username.lower())
     # Always run the KDF so response time does not reveal whether the username exists.
     password_ok = hmac.compare_digest(_hash(body.password), _DEMO_HASH)
     if user is None or not password_ok:
+        login_limiter.hit(limiter_key)
         raise AuthenticationError("Invalid username or password")
 
     return TokenResponse(

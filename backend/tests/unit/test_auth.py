@@ -35,6 +35,11 @@ def test_demo_user_gets_a_verifiable_token(client: TestClient) -> None:
     assert body["expires_in"] == 900
 
 
+def test_successful_logins_do_not_consume_the_failure_budget(client: TestClient) -> None:
+    for _ in range(10):
+        assert login(client, "aino").status_code == 200
+
+
 @pytest.mark.parametrize(("username", "password"), [("aino", "wrong"), ("nobody", DEMO_PASSWORD)])
 def test_bad_credentials_give_identical_errors(
     client: TestClient, username: str, password: str
