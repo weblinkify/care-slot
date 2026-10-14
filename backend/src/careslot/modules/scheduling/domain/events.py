@@ -29,3 +29,5 @@ class AppointmentRescheduled(DomainEvent):
 class AppointmentCancelled(DomainEvent):
     appointment_id: UUID
     patient_id: UUID
+    # A closed enum value, so safe to put on an event (events never carry free text).
+    reason: str | None = None

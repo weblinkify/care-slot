@@ -10,6 +10,7 @@ from careslot.modules.scheduling.domain.model import (
     Appointment,
     AppointmentNotActiveError,
     AppointmentStatus,
+    CancellationReason,
     ChangeWindowClosedError,
     SlotInPastError,
 )
@@ -80,3 +81,17 @@ def test_events_are_broker_ready_and_carry_ids_only(repo: FakeSchedulingReposito
         "starts_at",
     }
     assert all(isinstance(v, str) for v in message.values())
+
+
+def test_cancel_records_an_optional_reason_on_the_event(repo: FakeSchedulingRepository) -> None:
+    appt = Appointment.book(patient_id=uuid4(), slot=repo.make_slot(timedelta(days=1)), now=NOW)
+    appt.cancel(now=NOW, reason=CancellationReason.FEELING_BETTER)
+
+    assert appt.cancellation_reason is CancellationReason.FEELING_BETTER
+    assert appt.pending_events[-1].to_message()["reason"] == "feeling-better"
+
+
+def test_reason_is_optional(repo: FakeSchedulingRepository) -> None:
+    appt = Appointment.book(patient_id=uuid4(), slot=repo.make_slot(timedelta(days=1)), now=NOW)
+    appt.cancel(now=NOW)
+    assert appt.cancellation_reason is None

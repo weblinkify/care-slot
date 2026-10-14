@@ -22,3 +22,4 @@ export type ConsentPurpose = Schemas["ConsentPurpose"];
 export type ConsentState = Schemas["ConsentStateOut"];
 export type ConsentOverview = Schemas["ConsentOverviewOut"];
 export type ErasureResult = Schemas["ErasureResultOut"];
+export type CancellationReason = Schemas["CancellationReason"];

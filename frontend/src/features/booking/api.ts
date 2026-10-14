@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/api/client";
-import type { Appointment, Clinic, Slot } from "@/api/types";
+import type { Appointment, CancellationReason, Clinic, Slot } from "@/api/types";
 import { dayWindow, isoDateInClinic } from "@/lib/format";
 
 /** Query keys in one place so invalidation after a mutation cannot miss a cache entry. */
@@ -62,8 +62,17 @@ export function useBook() {
 export function useCancel() {
   const invalidate = useInvalidateBookingData();
   return useMutation({
-    mutationFn: (appointmentId: string) =>
-      api<Appointment>(`/appointments/${appointmentId}/cancel`, { method: "POST" }),
+    mutationFn: ({
+      appointmentId,
+      reason,
+    }: {
+      appointmentId: string;
+      reason?: CancellationReason;
+    }) =>
+      api<Appointment>(`/appointments/${appointmentId}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ reason: reason ?? null }),
+      }),
     onSettled: invalidate,
   });
 }

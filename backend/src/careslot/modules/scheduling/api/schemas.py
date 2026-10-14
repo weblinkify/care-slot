@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from careslot.modules.scheduling.domain.model import (
     Appointment,
     AppointmentStatus,
+    CancellationReason,
     Clinic,
     Clinician,
     Slot,
@@ -68,6 +69,12 @@ class RescheduleAppointmentIn(StrictModel):
     slot_id: UUID = Field(description="The new slot to move the appointment to.")
 
 
+class CancelAppointmentIn(StrictModel):
+    reason: CancellationReason | None = Field(
+        default=None, description="Optional, from a fixed list (no free text by design)."
+    )
+
+
 class AppointmentOut(BaseModel):
     id: UUID
     clinician_id: UUID
@@ -77,6 +84,7 @@ class AppointmentOut(BaseModel):
     status: AppointmentStatus
     created_at: datetime
     cancelled_at: datetime | None
+    cancellation_reason: CancellationReason | None
 
     @classmethod
     def of(cls, a: Appointment) -> "AppointmentOut":
@@ -89,6 +97,7 @@ class AppointmentOut(BaseModel):
             status=a.status,
             created_at=a.created_at,
             cancelled_at=a.cancelled_at,
+            cancellation_reason=a.cancellation_reason,
         )
 
 

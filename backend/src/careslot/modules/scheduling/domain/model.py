@@ -27,6 +27,17 @@ class AppointmentStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class CancellationReason(StrEnum):
+    """Why a patient cancelled. A closed list on purpose - never free text: patients would
+    write health details into a text box ("my back pain got worse"), turning a scheduling
+    field into special-category health data we neither need nor want (data minimisation)."""
+
+    SCHEDULING_CONFLICT = "scheduling-conflict"
+    FEELING_BETTER = "feeling-better"
+    BOOKED_ELSEWHERE = "booked-elsewhere"
+    OTHER = "other"
+
+
 class SlotInPastError(BusinessRuleError):
     code = "slot-in-past"
     title = "Slot has already started"
@@ -84,6 +95,7 @@ class Appointment:
     status: AppointmentStatus
     created_at: datetime
     cancelled_at: datetime | None = None
+    cancellation_reason: CancellationReason | None = None
     pending_events: list[DomainEvent] = field(default_factory=list, repr=False, compare=False)
 
     @classmethod
@@ -129,12 +141,14 @@ class Appointment:
             )
         )
 
-    def cancel(self, *, now: datetime) -> None:
+    def cancel(self, *, now: datetime, reason: CancellationReason | None = None) -> None:
+        # The reason is optional: asking is fine, forcing patients to explain is not.
         self._ensure_changeable(now)
         self.status = AppointmentStatus.CANCELLED
         self.cancelled_at = now
+        self.cancellation_reason = reason
         self.pending_events.append(
-            AppointmentCancelled(appointment_id=self.id, patient_id=self.patient_id)
+            AppointmentCancelled(appointment_id=self.id, patient_id=self.patient_id, reason=reason)
         )
 
     def cancel_by_system(self, *, now: datetime) -> None:

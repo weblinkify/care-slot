@@ -16,6 +16,7 @@ from careslot.modules.scheduling.application.ports import EventPublisher, Schedu
 from careslot.modules.scheduling.domain.model import (
     Appointment,
     AppointmentStatus,
+    CancellationReason,
     Clinic,
     Clinician,
     Slot,
@@ -117,9 +118,14 @@ class SchedulingService:
         self._flush_events(appointment)
         return appointment
 
-    def cancel(self, principal: Principal, appointment_id: UUID) -> Appointment:
+    def cancel(
+        self,
+        principal: Principal,
+        appointment_id: UUID,
+        reason: CancellationReason | None = None,
+    ) -> Appointment:
         appointment = self._get_own_appointment(principal, appointment_id)
-        appointment.cancel(now=self._clock())
+        appointment.cancel(now=self._clock(), reason=reason)
         self._repo.save(appointment)
         self._record_appointment(principal, "appointment.cancel", appointment)
         self._flush_events(appointment)

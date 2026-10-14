@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from careslot.modules.scheduling.domain.model import (
     Appointment,
     AppointmentStatus,
+    CancellationReason,
     Clinic,
     Clinician,
     Slot,
@@ -55,6 +56,9 @@ def _appointment(row: AppointmentRow) -> Appointment:
         status=AppointmentStatus(row.status),
         created_at=row.created_at,
         cancelled_at=row.cancelled_at,
+        cancellation_reason=(
+            CancellationReason(row.cancellation_reason) if row.cancellation_reason else None
+        ),
     )
 
 
@@ -183,6 +187,9 @@ class SqlSchedulingRepository:
         row.ends_at = appointment.ends_at
         row.status = appointment.status.value
         row.cancelled_at = appointment.cancelled_at
+        row.cancellation_reason = (
+            appointment.cancellation_reason.value if appointment.cancellation_reason else None
+        )
         self._flush()
 
     def _flush(self) -> None:

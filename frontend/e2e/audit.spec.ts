@@ -46,9 +46,8 @@ test("clinician opens a record with a stated reason; admin sees it in a verified
   await signIn(page, "eero");
   await page.getByRole("link", { name: "My appointments" }).click();
   const booked = page.getByRole("listitem").filter({ hasText: when }).filter({ hasText: "booked" });
-  await booked
-    .first()
-    .getByRole("button", { name: /^Cancel/ })
-    .click();
+  const card = booked.first();
+  await card.getByRole("button", { name: /^Cancel/ }).click();
+  await card.getByRole("button", { name: "Confirm cancellation" }).click();
   await expect(booked).toHaveCount(0);
 });

@@ -174,6 +174,7 @@ export function createDemoState(now = new Date()): DemoState {
         status: "booked",
         created_at: now.toISOString(),
         cancelled_at: null,
+        cancellation_reason: null,
       });
     });
   return state;
