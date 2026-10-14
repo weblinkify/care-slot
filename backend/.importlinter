@@ -8,3 +8,16 @@ name = Shared kernel must not depend on any module
 type = forbidden
 source_modules = careslot.shared
 forbidden_modules = careslot.modules
+
+# Inside every module, dependencies point inwards: api -> infrastructure -> application -> domain.
+# The domain therefore never imports FastAPI, SQLAlchemy or the use cases.
+[importlinter:contract:module-layers]
+name = Module layers point inwards
+type = layers
+containers =
+    careslot.modules.scheduling
+layers =
+    api
+    infrastructure
+    application
+    domain
