@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://careslot:careslot@localhost:5433/careslot"
     log_level: str = "INFO"
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    # OTLP/HTTP collector base URL, e.g. http://jaeger:4318. Unset: traces are not exported.
+    otel_exporter_endpoint: str | None = None
 
     # Authentication. Outside local/test the public key MUST be provided (fail fast).
     jwt_issuer: str = "careslot-mock-idp"

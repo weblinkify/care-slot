@@ -13,6 +13,7 @@ from collections.abc import MutableMapping
 from typing import Any
 
 import structlog
+from opentelemetry import trace
 
 SENSITIVE_KEYS = frozenset(
     {
@@ -44,6 +45,17 @@ def redact_sensitive(
     return event_dict
 
 
+def add_trace_context(
+    _logger: Any, _method: str, event_dict: MutableMapping[str, Any]
+) -> MutableMapping[str, Any]:
+    """Attach the active OpenTelemetry trace/span id: every log line links to its trace."""
+    ctx = trace.get_current_span().get_span_context()
+    if ctx.is_valid:
+        event_dict["trace_id"] = format(ctx.trace_id, "032x")
+        event_dict["span_id"] = format(ctx.span_id, "016x")
+    return event_dict
+
+
 def configure_logging(level: str = "INFO") -> None:
     logging.basicConfig(format="%(message)s", stream=sys.stdout, level=level)
     structlog.configure(
@@ -51,11 +63,14 @@ def configure_logging(level: str = "INFO") -> None:
             structlog.contextvars.merge_contextvars,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", utc=True),
+            add_trace_context,
             redact_sensitive,
             structlog.processors.format_exc_info,
             structlog.processors.JSONRenderer(),
         ],
-        wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(level)),
+        wrapper_class=structlog.make_filtering_bound_logger(
+            logging.getLevelNamesMapping()[level.upper()]
+        ),
         cache_logger_on_first_use=True,
     )
 

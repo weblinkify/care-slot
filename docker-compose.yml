@@ -24,6 +24,8 @@ services:
         required: false  # defaults work without it; copy .env.example to override
     environment:
       CARESLOT_DATABASE_URL: postgresql+psycopg://careslot:careslot@db:5432/careslot
+      # Set by `make up-observability` to export traces to the Jaeger service below.
+      CARESLOT_OTEL_EXPORTER_ENDPOINT: ${CARESLOT_OTEL_EXPORTER_ENDPOINT:-}
     depends_on:
       db: { condition: service_healthy }
     # Migrations run before the server starts so the schema is always current locally.
@@ -37,6 +39,14 @@ services:
         VITE_API_URL: http://localhost:8000
     ports: ["5173:8080"]
     depends_on: [api]
+
+  # Opt-in tracing UI: `make up-observability`, then open http://localhost:16686
+  jaeger:
+    profiles: [observability]
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports: ["16686:16686"]
 
 volumes:
   pgdata:
