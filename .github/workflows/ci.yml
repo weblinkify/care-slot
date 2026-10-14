@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -68,7 +68,7 @@ jobs:
           docker compose up --build -d --wait db api
           docker compose up --build -d web
           docker compose exec -T api python -m careslot.seed
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -97,7 +97,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Python dependency audit (pip-audit)
         run: cd backend && uv export --frozen --no-hashes --no-emit-project > /tmp/req.txt && uvx pip-audit -r /tmp/req.txt --strict
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: npm dependency audit
