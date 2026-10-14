@@ -1,6 +1,19 @@
 {
   "components": {
     "schemas": {
+      "AccessReason": {
+        "description": "Why personal data was accessed (GDPR purpose limitation). Required for clinicians.",
+        "enum": [
+          "self-service",
+          "treatment",
+          "appointment-preparation",
+          "audit-review",
+          "data-subject-request",
+          "system-job"
+        ],
+        "title": "AccessReason",
+        "type": "string"
+      },
       "AppointmentOut": {
         "properties": {
           "cancelled_at": {
@@ -70,6 +83,88 @@
         "title": "AppointmentStatus",
         "type": "string"
       },
+      "AuditEntryOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          },
+          "actor_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Role"
+          },
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "patient_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Id"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_type": {
+            "title": "Resource Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "occurred_at",
+          "actor_id",
+          "actor_role",
+          "action",
+          "resource_type",
+          "resource_id",
+          "patient_id",
+          "reason",
+          "hash"
+        ],
+        "title": "AuditEntryOut",
+        "type": "object"
+      },
       "BookAppointmentIn": {
         "additionalProperties": false,
         "properties": {
@@ -83,6 +178,36 @@
           "slot_id"
         ],
         "title": "BookAppointmentIn",
+        "type": "object"
+      },
+      "ChainVerificationOut": {
+        "properties": {
+          "entries_checked": {
+            "title": "Entries Checked",
+            "type": "integer"
+          },
+          "first_invalid_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Invalid Id"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid",
+          "entries_checked",
+          "first_invalid_id"
+        ],
+        "title": "ChainVerificationOut",
         "type": "object"
       },
       "ClinicOut": {
@@ -178,6 +303,70 @@
         "title": "HealthStatus",
         "type": "object"
       },
+      "OwnPatientRecordOut": {
+        "description": "What a patient sees about themselves (GDPR right of access): everything we hold.",
+        "properties": {
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "identity_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Code"
+          }
+        },
+        "required": [
+          "id",
+          "full_name",
+          "identity_code"
+        ],
+        "title": "OwnPatientRecordOut",
+        "type": "object"
+      },
+      "PatientSummaryOut": {
+        "description": "What a clinician sees: identity code masked - enough to confirm identity verbally.",
+        "properties": {
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "identity_code_masked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Code Masked"
+          }
+        },
+        "required": [
+          "id",
+          "full_name",
+          "identity_code_masked"
+        ],
+        "title": "PatientSummaryOut",
+        "type": "object"
+      },
       "Problem": {
         "description": "RFC 7807 problem details.",
         "properties": {
@@ -263,6 +452,74 @@
         ],
         "title": "Role",
         "type": "string"
+      },
+      "ScheduleEntryOut": {
+        "description": "Clinician view: includes the patient id so the clinician can open the record - an\nexplicit, reason-stated and audited action (GET /patients/{id}).",
+        "properties": {
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          },
+          "clinician_id": {
+            "format": "uuid",
+            "title": "Clinician Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "slot_id": {
+            "format": "uuid",
+            "title": "Slot Id",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AppointmentStatus"
+          }
+        },
+        "required": [
+          "id",
+          "clinician_id",
+          "slot_id",
+          "starts_at",
+          "ends_at",
+          "status",
+          "created_at",
+          "cancelled_at",
+          "patient_id"
+        ],
+        "title": "ScheduleEntryOut",
+        "type": "object"
       },
       "SlotOut": {
         "properties": {
@@ -848,6 +1105,182 @@
         ]
       }
     },
+    "/api/v1/audit-log": {
+      "get": {
+        "operationId": "search_api_v1_audit_log_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actor Id"
+            }
+          },
+          {
+            "description": "Keyset cursor: id of the last entry seen",
+            "in": "query",
+            "name": "before_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keyset cursor: id of the last entry seen",
+              "title": "Before Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEntryOut"
+                  },
+                  "title": "Response Search Api V1 Audit Log Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search the audit log (newest first)",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/v1/audit-log/verify": {
+      "get": {
+        "operationId": "verify_api_v1_audit_log_verify_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChainVerificationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Recompute the hash chain and report the first tampered entry, if any",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
     "/api/v1/auth/token": {
       "post": {
         "operationId": "token_api_v1_auth_token_post",
@@ -924,7 +1357,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/AppointmentOut"
+                    "$ref": "#/components/schemas/ScheduleEntryOut"
                   },
                   "title": "Response My Schedule Api V1 Clinicians Me Schedule Get",
                   "type": "array"
@@ -1170,6 +1603,157 @@
         "summary": "List clinics and clinicians",
         "tags": [
           "scheduling"
+        ]
+      }
+    },
+    "/api/v1/patients/me": {
+      "get": {
+        "operationId": "get_me_api_v1_patients_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnPatientRecordOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Not found"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "The calling patient's own record",
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}": {
+      "get": {
+        "operationId": "get_for_clinician_api_v1_patients__patient_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Purpose of access, recorded in the audit log",
+            "in": "query",
+            "name": "reason",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AccessReason",
+              "description": "Purpose of access, recorded in the audit log"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Validation error or business rule violated"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Open a patient record (clinicians with a care relationship; audited with reason)",
+        "tags": [
+          "patients"
         ]
       }
     },

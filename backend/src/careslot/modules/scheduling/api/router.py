@@ -11,15 +11,18 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from careslot.modules.audit import get_audit_sink
 from careslot.modules.scheduling.api.schemas import (
     AppointmentOut,
     BookAppointmentIn,
     ClinicOut,
     RescheduleAppointmentIn,
+    ScheduleEntryOut,
     SlotOut,
 )
 from careslot.modules.scheduling.application.services import SchedulingService
 from careslot.modules.scheduling.infrastructure.repository import SqlSchedulingRepository
+from careslot.shared.audit import AuditSink
 from careslot.shared.clock import system_clock
 from careslot.shared.db import get_session
 from careslot.shared.errors import PROBLEM_RESPONSES
@@ -28,10 +31,14 @@ from careslot.shared.principal import Role
 from careslot.shared.security import CurrentPrincipal, get_principal, require_role
 
 
-def get_scheduling_service(session: Annotated[Session, Depends(get_session)]) -> SchedulingService:
+def get_scheduling_service(
+    session: Annotated[Session, Depends(get_session)],
+    audit: Annotated[AuditSink, Depends(get_audit_sink)],
+) -> SchedulingService:
     return SchedulingService(
         repo=SqlSchedulingRepository(session),
         publish=lambda event: event_bus.publish(event, session),
+        audit=audit,
         clock=system_clock,
     )
 
@@ -122,11 +129,11 @@ def cancel(appointment_id: UUID, principal: CurrentPrincipal, service: Service) 
 
 @router.get(
     "/clinicians/me/schedule",
-    response_model=list[AppointmentOut],
+    response_model=list[ScheduleEntryOut],
     summary="The calling clinician's appointments for one day (clinic timezone)",
     dependencies=[require_role(Role.CLINICIAN)],
 )
 def my_schedule(
     principal: CurrentPrincipal, service: Service, day: Annotated[date, Query()]
-) -> list[AppointmentOut]:
-    return [AppointmentOut.of(a) for a in service.clinician_day(principal, day)]
+) -> list[ScheduleEntryOut]:
+    return [ScheduleEntryOut.of(a) for a in service.clinician_day(principal, day)]

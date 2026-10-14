@@ -11,8 +11,10 @@ from careslot.modules.scheduling.application.services import (
     SchedulingService,
 )
 from careslot.modules.scheduling.domain.model import SlotUnavailableError
+from careslot.shared.audit import AccessReason
 from careslot.shared.errors import BusinessRuleError, ForbiddenError
 from careslot.shared.principal import Principal, Role
+from tests.fakes import RecordingAudit
 from tests.unit.scheduling.fakes import NOW, FakeSchedulingRepository, RecordingPublisher
 
 
@@ -27,8 +29,15 @@ def events() -> RecordingPublisher:
 
 
 @pytest.fixture
-def service(repo: FakeSchedulingRepository, events: RecordingPublisher) -> SchedulingService:
-    return SchedulingService(repo=repo, publish=events, clock=lambda: NOW)
+def audit() -> RecordingAudit:
+    return RecordingAudit()
+
+
+@pytest.fixture
+def service(
+    repo: FakeSchedulingRepository, events: RecordingPublisher, audit: RecordingAudit
+) -> SchedulingService:
+    return SchedulingService(repo=repo, publish=events, audit=audit, clock=lambda: NOW)
 
 
 def patient() -> Principal:
@@ -145,3 +154,50 @@ def test_clinician_day_uses_clinic_timezone(
 
     assert service.clinician_day(me, date(2026, 3, 2)) == []
     assert len(service.clinician_day(me, date(2026, 3, 3))) == 1
+
+
+def test_every_patient_data_access_is_audited(
+    service: SchedulingService, repo: FakeSchedulingRepository, audit: RecordingAudit
+) -> None:
+    me = patient()
+    appt = service.book(me, repo.make_slot(timedelta(days=1)).id)
+    service.get_appointment(me, appt.id)
+    service.my_appointments(me)
+    service.reschedule(me, appt.id, repo.make_slot(timedelta(days=2)).id)
+    service.cancel(me, appt.id)
+
+    assert audit.actions == [
+        "appointment.book",
+        "appointment.read",
+        "appointment.list",
+        "appointment.reschedule",
+        "appointment.cancel",
+    ]
+    assert {r.patient_id for r in audit.records} == {me.subject}
+    assert {r.reason for r in audit.records} == {AccessReason.SELF_SERVICE}
+
+
+def test_clinician_day_audits_one_entry_per_patient(
+    service: SchedulingService, repo: FakeSchedulingRepository, audit: RecordingAudit
+) -> None:
+    p1, p2 = patient(), patient()
+    service.book(p1, repo.make_slot(timedelta(hours=26)).id)
+    service.book(p2, repo.make_slot(timedelta(hours=27)).id)
+    audit.records.clear()
+
+    service.clinician_day(
+        Principal(subject=repo.clinician.id, role=Role.CLINICIAN), date(2026, 3, 3)
+    )
+
+    assert [r.patient_id for r in audit.records] == [p1.subject, p2.subject]
+    assert {r.reason for r in audit.records} == {AccessReason.APPOINTMENT_PREPARATION}
+
+
+def test_denied_access_writes_no_audit_entry(
+    service: SchedulingService, repo: FakeSchedulingRepository, audit: RecordingAudit
+) -> None:
+    appt = service.book(patient(), repo.make_slot(timedelta(days=1)).id)
+    audit.records.clear()
+    with pytest.raises(AppointmentNotFoundError):
+        service.get_appointment(patient(), appt.id)
+    assert audit.records == []  # nothing was disclosed, so nothing to audit as an access

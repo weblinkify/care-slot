@@ -16,6 +16,8 @@ name = Module layers point inwards
 type = layers
 containers =
     careslot.modules.scheduling
+    careslot.modules.patients
+    careslot.modules.audit
 layers =
     api
     infrastructure
@@ -28,3 +30,51 @@ name = Modules do not depend on the mock identity provider
 type = forbidden
 source_modules = careslot.modules
 forbidden_modules = careslot.mock_idp
+
+# Bounded context boundary: other modules may use `careslot.modules.scheduling` (its public
+# interface, re-exported in __init__.py) but never its internals.
+[importlinter:contract:boundary-scheduling]
+name = Only the public interface of scheduling is used by other modules
+type = forbidden
+# Indirect chains via the public interface are the intended path; only direct reaches fail.
+allow_indirect_imports = True
+source_modules =
+    careslot.modules.patients
+    careslot.modules.audit
+forbidden_modules =
+    careslot.modules.scheduling.domain
+    careslot.modules.scheduling.application
+    careslot.modules.scheduling.infrastructure
+    careslot.modules.scheduling.api
+
+# Bounded context boundary: other modules may use `careslot.modules.patients` (its public
+# interface, re-exported in __init__.py) but never its internals.
+[importlinter:contract:boundary-patients]
+name = Only the public interface of patients is used by other modules
+type = forbidden
+# Indirect chains via the public interface are the intended path; only direct reaches fail.
+allow_indirect_imports = True
+source_modules =
+    careslot.modules.scheduling
+    careslot.modules.audit
+forbidden_modules =
+    careslot.modules.patients.domain
+    careslot.modules.patients.application
+    careslot.modules.patients.infrastructure
+    careslot.modules.patients.api
+
+# Bounded context boundary: other modules may use `careslot.modules.audit` (its public
+# interface, re-exported in __init__.py) but never its internals.
+[importlinter:contract:boundary-audit]
+name = Only the public interface of audit is used by other modules
+type = forbidden
+# Indirect chains via the public interface are the intended path; only direct reaches fail.
+allow_indirect_imports = True
+source_modules =
+    careslot.modules.scheduling
+    careslot.modules.patients
+forbidden_modules =
+    careslot.modules.audit.domain
+    careslot.modules.audit.application
+    careslot.modules.audit.infrastructure
+    careslot.modules.audit.api

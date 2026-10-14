@@ -14,7 +14,12 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from careslot.modules.audit import make_audit_sink
+from careslot.modules.patients.application.services import PatientService
+from careslot.modules.patients.domain.model import PersonalIdentityCode
+from careslot.modules.patients.infrastructure.repository import SqlPatientRepository
 from careslot.modules.scheduling.infrastructure.models import ClinicianRow, ClinicRow, SlotRow
+from careslot.shared.clock import system_clock
 from careslot.shared.db import get_session_factory
 from careslot.shared.logging import configure_logging, get_logger
 
@@ -23,6 +28,12 @@ CLINIC_ID = UUID("0b6f4c64-0000-4000-8000-000000000001")
 CLINICIANS = {
     UUID("c1000000-0000-4000-8000-000000000001"): ("Dr. Aava Example", "General practice"),
     UUID("c1000000-0000-4000-8000-000000000002"): ("Dr. Onni Sample", "Physiotherapy"),
+}
+# Demo patients (match the mock IdP users). Identity codes use the 900-999 individual-number
+# range that is never issued to real people, with a valid check character.
+PATIENTS = {
+    UUID("a1000000-0000-4000-8000-000000000001"): ("Aino Example", "150385-9013"),
+    UUID("a1000000-0000-4000-8000-000000000002"): ("Eero Sample", "020794-9029"),
 }
 SLOT_MINUTES = 30
 DAY_START, DAY_END = time(8, 0), time(16, 0)
@@ -71,6 +82,23 @@ def _seed_scheduling(session: Session, today: date) -> int:
     return created
 
 
+def _seed_patients(session: Session) -> int:
+    service = PatientService(
+        repo=SqlPatientRepository(session),
+        audit=make_audit_sink(session),
+        care_relationship=lambda _c, _p: False,
+        publish=lambda _e: None,
+        clock=system_clock,
+    )
+    repo = SqlPatientRepository(session)
+    created = 0
+    for patient_id, (name, code) in PATIENTS.items():
+        if repo.get(patient_id) is None:
+            service.register(patient_id, name, PersonalIdentityCode.parse(code, synthetic_only=True))
+            created += 1
+    return created
+
+
 def _slot_id(clinician_id: UUID, starts_at: datetime) -> UUID:
     # Deterministic so re-running the seed never creates duplicates.
     return uuid5(NAMESPACE_URL, f"careslot:slot:{clinician_id}:{starts_at.isoformat()}")
@@ -80,8 +108,9 @@ def main() -> None:
     configure_logging()
     with get_session_factory()() as session:
         slots = _seed_scheduling(session, datetime.now(UTC).date())
+        patients = _seed_patients(session)
         session.commit()
-    log.info("seed.completed", slots_created=slots)
+    log.info("seed.completed", slots_created=slots, patients_created=patients)
 
 
 if __name__ == "__main__":

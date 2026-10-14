@@ -7,6 +7,8 @@ middleware together. Modules never import each other's internals (enforced by im
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from careslot.modules.audit.api.router import router as audit_router
+from careslot.modules.patients.api.router import router as patients_router
 from careslot.modules.scheduling.api.router import router as scheduling_router
 from careslot.shared.config import Settings, get_settings
 from careslot.shared.errors import register_error_handlers
@@ -42,6 +44,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_error_handlers(app)
     app.include_router(health_router)
     app.include_router(scheduling_router, prefix=API_V1)
+    app.include_router(patients_router, prefix=API_V1)
+    app.include_router(audit_router, prefix=API_V1)
 
     if settings.environment != "production":
         # Dev/demo-only token issuer. Imported lazily so production never even loads it.

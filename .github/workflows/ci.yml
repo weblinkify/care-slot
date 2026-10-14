@@ -64,6 +64,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start stack (db, api, web) and seed synthetic data
         run: |
+          make env
           docker compose up --build -d --wait db api
           docker compose up --build -d web
           docker compose exec -T api python -m careslot.seed

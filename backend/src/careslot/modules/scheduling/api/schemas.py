@@ -90,3 +90,14 @@ class AppointmentOut(BaseModel):
             created_at=a.created_at,
             cancelled_at=a.cancelled_at,
         )
+
+
+class ScheduleEntryOut(AppointmentOut):
+    """Clinician view: includes the patient id so the clinician can open the record - an
+    explicit, reason-stated and audited action (GET /patients/{id})."""
+
+    patient_id: UUID
+
+    @classmethod
+    def of(cls, a: Appointment) -> "ScheduleEntryOut":
+        return cls(**AppointmentOut.of(a).model_dump(), patient_id=a.patient_id)

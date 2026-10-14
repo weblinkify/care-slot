@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     jwt_public_key: str | None = None
     idp_private_key: SecretStr | None = None
 
+    # Column encryption (shared.crypto). "v1:<b64>,v2:<b64>" - last entry is active.
+    keks: SecretStr | None = None
+    blind_index_key: SecretStr | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

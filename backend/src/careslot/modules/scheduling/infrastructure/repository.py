@@ -176,3 +176,17 @@ class SqlSchedulingRepository:
             if "uq_sched_appointments_active_slot" in str(exc.orig):
                 raise SlotUnavailableError() from exc
             raise
+
+
+def has_care_relationship(session: Session, clinician_id: UUID, patient_id: UUID) -> bool:
+    """True if the clinician has (or had) any appointment with the patient."""
+    return bool(
+        session.scalar(
+            select(
+                exists().where(
+                    AppointmentRow.clinician_id == clinician_id,
+                    AppointmentRow.patient_id == patient_id,
+                )
+            )
+        )
+    )

@@ -1,8 +1,11 @@
 """Scheduling use cases.
 
 Each public method is one use case: authorise -> load -> apply domain rule -> persist ->
-publish events. Authorisation lives here (not in the router) so it is enforced for every
-caller - HTTP today, a message consumer or CLI tomorrow - and is unit-testable.
+audit -> publish events. Authorisation lives here (not in the router) so it is enforced for
+every caller - HTTP today, a message consumer or CLI tomorrow - and is unit-testable.
+
+Appointments are patient data (an appointment with a physiotherapist says something about a
+person's health), so every successful read and write is audited.
 """
 
 from datetime import date, datetime, time, timedelta
@@ -17,6 +20,7 @@ from careslot.modules.scheduling.domain.model import (
     Slot,
     SlotUnavailableError,
 )
+from careslot.shared.audit import AccessReason, AuditRecord, AuditSink
 from careslot.shared.clock import Clock
 from careslot.shared.errors import BusinessRuleError, ForbiddenError, NotFoundError
 from careslot.shared.principal import Principal, Role
@@ -29,9 +33,16 @@ class AppointmentNotFoundError(NotFoundError):
 
 
 class SchedulingService:
-    def __init__(self, repo: SchedulingRepository, publish: EventPublisher, clock: Clock) -> None:
+    def __init__(
+        self,
+        repo: SchedulingRepository,
+        publish: EventPublisher,
+        audit: AuditSink,
+        clock: Clock,
+    ) -> None:
         self._repo = repo
         self._publish = publish
+        self._audit = audit
         self._clock = clock
 
     # --- queries -------------------------------------------------------------------------
@@ -51,13 +62,18 @@ class SchedulingService:
 
     def my_appointments(self, principal: Principal) -> list[Appointment]:
         self._require(principal, Role.PATIENT)
-        return self._repo.list_for_patient(principal.subject)
+        appointments = self._repo.list_for_patient(principal.subject)
+        self._record(
+            principal, "appointment.list", "patient", str(principal.subject), principal.subject
+        )
+        return appointments
 
     def get_appointment(self, principal: Principal, appointment_id: UUID) -> Appointment:
         appointment = self._repo.get_appointment(appointment_id)
         if appointment is None or not self._can_view(principal, appointment):
             # Same response whether it does not exist or belongs to someone else (no enumeration).
             raise AppointmentNotFoundError()
+        self._record_appointment(principal, "appointment.read", appointment)
         return appointment
 
     def clinician_day(self, principal: Principal, day: date) -> list[Appointment]:
@@ -69,7 +85,12 @@ class SchedulingService:
         clinic = self._repo.get_clinic(clinician.clinic_id)
         tz = ZoneInfo(clinic.timezone if clinic else "UTC")
         start = datetime.combine(day, time.min, tzinfo=tz)
-        return self._repo.list_for_clinician(clinician.id, start, start + timedelta(days=1))
+        appointments = self._repo.list_for_clinician(clinician.id, start, start + timedelta(days=1))
+        # One entry per patient shown: "who accessed which patient's data" must be answerable
+        # per patient, not hidden inside a single "schedule viewed" row.
+        for appointment in appointments:
+            self._record_appointment(principal, "appointment.read", appointment)
+        return appointments
 
     # --- commands ------------------------------------------------------------------------
 
@@ -80,6 +101,7 @@ class SchedulingService:
         slot = self._get_free_slot(slot_id)
         appointment = Appointment.book(patient_id=principal.subject, slot=slot, now=self._clock())
         self._repo.add(appointment)
+        self._record_appointment(principal, "appointment.book", appointment)
         self._flush_events(appointment)
         return appointment
 
@@ -90,6 +112,7 @@ class SchedulingService:
         new_slot = self._get_free_slot(new_slot_id)
         appointment.reschedule(new_slot=new_slot, now=self._clock())
         self._repo.save(appointment)
+        self._record_appointment(principal, "appointment.reschedule", appointment)
         self._flush_events(appointment)
         return appointment
 
@@ -97,6 +120,7 @@ class SchedulingService:
         appointment = self._get_own_appointment(principal, appointment_id)
         appointment.cancel(now=self._clock())
         self._repo.save(appointment)
+        self._record_appointment(principal, "appointment.cancel", appointment)
         self._flush_events(appointment)
         return appointment
 
@@ -130,6 +154,35 @@ class SchedulingService:
     def _require(principal: Principal, role: Role) -> None:
         if principal.role is not role:
             raise ForbiddenError(f"This action requires the {role} role.")
+
+    def _record_appointment(
+        self, principal: Principal, action: str, appointment: Appointment
+    ) -> None:
+        self._record(principal, action, "appointment", str(appointment.id), appointment.patient_id)
+
+    def _record(
+        self,
+        principal: Principal,
+        action: str,
+        resource_type: str,
+        resource_id: str,
+        patient_id: UUID,
+    ) -> None:
+        reason = (
+            AccessReason.SELF_SERVICE
+            if principal.role is Role.PATIENT
+            else AccessReason.APPOINTMENT_PREPARATION
+        )
+        self._audit(
+            AuditRecord(
+                actor=principal,
+                action=action,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                patient_id=patient_id,
+                reason=reason,
+            )
+        )
 
     def _flush_events(self, appointment: Appointment) -> None:
         for event in appointment.pending_events:

@@ -6,7 +6,7 @@ BACKEND := cd backend &&
 FRONTEND := cd frontend &&
 
 .DEFAULT_GOAL := help
-.PHONY: help install up down logs seed migrate test test-unit test-integration test-contract \
+.PHONY: help install env up down logs seed migrate test test-unit test-integration test-contract \
         e2e lint fmt typecheck check openapi
 
 help: ## Show this help
@@ -16,8 +16,13 @@ install: ## Install backend + frontend dependencies
 	$(BACKEND) $(UV) sync
 	$(FRONTEND) npm ci
 
-up: ## Start the whole stack (db, api, web) with Docker Compose
-	@test -f .env || cp .env.example .env
+env: ## Create .env with freshly generated local-only encryption keys (if missing)
+	@test -f .env || { cp .env.example .env && \
+	  echo "CARESLOT_KEKS=v1:$$(openssl rand -base64 32)" >> .env && \
+	  echo "CARESLOT_BLIND_INDEX_KEY=$$(openssl rand -base64 32)" >> .env && \
+	  echo "Created .env with new random local keys"; }
+
+up: env ## Start the whole stack (db, api, web) with Docker Compose
 	docker compose up --build -d
 	@echo "API  -> http://localhost:8000/api/v1/docs"
 	@echo "Web  -> http://localhost:5173"
