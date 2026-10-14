@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-// Regression guard: nginx silently dropped every security header for months-to-be because a
+// Regression guard: nginx once silently dropped every security header because a
 // location-level add_header disables inheritance. Checked on every deployed surface (nginx
 // container, Vercel). The bare `vite preview` server sends none, so it opts out.
 test.skip(process.env.E2E_SKIP_HEADERS === "1", "vite preview does not send security headers");
