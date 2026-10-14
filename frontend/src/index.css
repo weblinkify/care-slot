@@ -24,6 +24,7 @@
   --brand-soft: oklch(95% 0.03 210);
   --brand-ink: oklch(100% 0 0);
   --danger: oklch(50% 0.19 27);
+  --danger-ink: oklch(100% 0 0);
   --danger-soft: oklch(96% 0.03 27);
   --success: oklch(47% 0.11 155);
   --success-soft: oklch(96% 0.04 155);
@@ -44,6 +45,7 @@
     --brand-soft: oklch(29% 0.05 210);
     --brand-ink: oklch(18% 0.03 210);
     --danger: oklch(72% 0.16 27);
+    --danger-ink: oklch(18% 0.04 27);
     --danger-soft: oklch(28% 0.06 27);
     --success: oklch(74% 0.13 155);
     --success-soft: oklch(27% 0.05 155);
@@ -65,6 +67,7 @@
   --color-brand-soft: var(--brand-soft);
   --color-brand-ink: var(--brand-ink);
   --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
   --color-danger-soft: var(--danger-soft);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);

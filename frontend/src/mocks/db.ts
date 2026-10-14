@@ -8,7 +8,7 @@
  * ownership checks - so the demo behaves honestly. Types come from the OpenAPI contract, so
  * the mock cannot drift from the real API's shape without failing the type check.
  */
-import type { Appointment, Clinic, Role, Slot } from "@/api/types";
+import type { Appointment, Clinic, ConsentPurpose, Role, Slot } from "@/api/types";
 
 export const DEMO_TZ = "Europe/Helsinki";
 export const CHANGE_CUTOFF_MS = 2 * 60 * 60 * 1000;
@@ -118,10 +118,27 @@ export type DemoAppointment = Appointment & { patient_id: string };
 
 export type DemoPatient = { id: string; full_name: string; identity_code: string | null };
 
+export type DemoConsentDecision = {
+  id: string;
+  patient_id: string;
+  purpose: ConsentPurpose;
+  granted: boolean;
+  decided_at: string;
+  policy_version: string;
+};
+
+export const CONSENT_PURPOSES: ConsentPurpose[] = [
+  "regional-record-sharing",
+  "research",
+  "ai-summaries",
+];
+export const POLICY_VERSION = "2026-01";
+
 export type DemoState = {
   slots: Slot[];
   appointments: DemoAppointment[];
   patients: DemoPatient[];
+  consents: DemoConsentDecision[];
 };
 
 /** Same synthetic people as backend/src/careslot/seed.py (identity codes in the 900-999 range). */
@@ -134,7 +151,7 @@ function demoPatients(): DemoPatient[] {
 
 export function createDemoState(now = new Date()): DemoState {
   const slots = buildSlots(now);
-  const state: DemoState = { slots, appointments: [], patients: demoPatients() };
+  const state: DemoState = { slots, appointments: [], patients: demoPatients(), consents: [] };
 
   // Pre-book a few future slots so the clinician's day and Aino's list are not empty.
   const future = slots.filter(

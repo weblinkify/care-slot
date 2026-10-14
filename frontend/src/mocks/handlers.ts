@@ -8,6 +8,9 @@ import { http, HttpResponse } from "msw";
 import type {
   AccessReason,
   Appointment,
+  ConsentOverview,
+  ConsentPurpose,
+  ConsentState,
   OwnPatientRecord,
   PatientSummary,
   ScheduleEntry,
@@ -17,12 +20,15 @@ import type {
 import { DemoAuditLog } from "./audit";
 import {
   CHANGE_CUTOFF_MS,
+  CONSENT_PURPOSES,
   clinics,
   createDemoState,
   dateInClinic,
   DEMO_USERS,
   isBooked,
+  POLICY_VERSION,
   type DemoAppointment,
+  type DemoConsentDecision,
   type DemoState,
   type DemoUser,
 } from "./db";
@@ -99,6 +105,20 @@ export function createHandlers(
         "Changes are not possible later than 2:00:00 before the start time.",
       );
     return null;
+  }
+
+  function consentState(patientId: string): ConsentState[] {
+    return CONSENT_PURPOSES.map((purpose) => {
+      const latest = state.consents
+        .filter((c) => c.patient_id === patientId && c.purpose === purpose)
+        .at(-1);
+      return {
+        purpose,
+        granted: latest?.granted ?? false,
+        decided_at: latest?.decided_at ?? null,
+        policy_version: latest?.policy_version ?? null,
+      };
+    });
   }
 
   return [
@@ -243,6 +263,100 @@ export function createHandlers(
       if (!patient) return notFound("Patient not found");
       await audit.record(user, "patient.read", "patient", patient.id, patient.id, "self-service");
       return HttpResponse.json<OwnPatientRecord>(patient);
+    }),
+
+    http.post(`${API}/patients/me/erasure`, async ({ request }) => {
+      const user = principal(request);
+      if (!user) return unauthenticated();
+      if (user.role !== "patient") return forbidden();
+      const body = (await request.json()) as { confirm?: unknown };
+      if (body.confirm !== true)
+        return problem(422, "validation-error", "Request validation failed");
+      const patient = state.patients.find((p) => p.id === user.subject);
+      if (!patient) return notFound("Patient not found");
+      if (patient.full_name === "Erased patient")
+        return problem(409, "patient-erased", "Patient has been erased");
+
+      patient.full_name = "Erased patient";
+      patient.identity_code = null;
+      const erasedAt = now().toISOString();
+      await audit.record(
+        user,
+        "patient.erase",
+        "patient",
+        patient.id,
+        patient.id,
+        "data-subject-request",
+      );
+      // Same fan-out as the backend's PatientErased handlers.
+      for (const a of state.appointments) {
+        if (a.patient_id === patient.id && a.status === "booked" && new Date(a.starts_at) > now()) {
+          a.status = "cancelled";
+          a.cancelled_at = erasedAt;
+          await audit.record(
+            null,
+            "appointment.cancel",
+            "appointment",
+            a.id,
+            patient.id,
+            "data-subject-request",
+          );
+        }
+      }
+      state.consents = state.consents.filter((c) => c.patient_id !== patient.id);
+      return HttpResponse.json({ erased_at: erasedAt });
+    }),
+
+    http.get(`${API}/consents`, async ({ request }) => {
+      const user = principal(request);
+      if (!user) return unauthenticated();
+      if (user.role !== "patient") return forbidden();
+      await audit.record(
+        user,
+        "consent.read",
+        "consent",
+        user.subject,
+        user.subject,
+        "self-service",
+      );
+      const history = state.consents
+        .filter((c) => c.patient_id === user.subject)
+        .map(({ patient_id, ...d }) => d)
+        .reverse();
+      return HttpResponse.json<ConsentOverview>({ current: consentState(user.subject), history });
+    }),
+
+    http.put(`${API}/consents/:purpose`, async ({ request, params }) => {
+      const user = principal(request);
+      if (!user) return unauthenticated();
+      if (user.role !== "patient") return forbidden();
+      const purpose = params.purpose as ConsentPurpose;
+      if (!CONSENT_PURPOSES.includes(purpose))
+        return problem(422, "validation-error", "Request validation failed");
+      const { granted } = (await request.json()) as { granted: boolean };
+      const current = consentState(user.subject).find((c) => c.purpose === purpose);
+      if (current && current.granted === granted && current.decided_at)
+        return HttpResponse.json(current);
+
+      const decision: DemoConsentDecision = {
+        id: crypto.randomUUID(),
+        patient_id: user.subject,
+        purpose,
+        granted,
+        decided_at: now().toISOString(),
+        policy_version: POLICY_VERSION,
+      };
+      state.consents.push(decision);
+      await audit.record(
+        user,
+        granted ? "consent.grant" : "consent.withdraw",
+        "consent",
+        user.subject,
+        user.subject,
+        "self-service",
+      );
+      const { id, patient_id, ...result } = decision;
+      return HttpResponse.json<ConsentState>(result);
     }),
 
     http.get(`${API}/patients/:id`, async ({ request, params }) => {

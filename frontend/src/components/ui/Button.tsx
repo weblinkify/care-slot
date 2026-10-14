@@ -15,7 +15,7 @@ const buttonVariants = cva(
         primary: "bg-brand text-brand-ink hover:bg-brand-strong",
         secondary: "border border-line bg-surface text-ink hover:bg-surface-muted",
         ghost: "text-ink-muted hover:bg-surface-muted hover:text-ink",
-        danger: "bg-danger text-white hover:opacity-90",
+        danger: "bg-danger text-danger-ink hover:opacity-90",
       },
       size: {
         sm: "h-8 px-3 text-sm",

@@ -18,3 +18,7 @@ export type PatientSummary = Schemas["PatientSummaryOut"];
 export type AccessReason = Schemas["AccessReason"];
 export type AuditEntry = Schemas["AuditEntryOut"];
 export type ChainVerification = Schemas["ChainVerificationOut"];
+export type ConsentPurpose = Schemas["ConsentPurpose"];
+export type ConsentState = Schemas["ConsentStateOut"];
+export type ConsentOverview = Schemas["ConsentOverviewOut"];
+export type ErasureResult = Schemas["ErasureResultOut"];

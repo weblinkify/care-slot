@@ -144,4 +144,31 @@ describe("demo API", () => {
     ).json()) as ChainVerification;
     expect(verification).toEqual({ valid: true, entries_checked: 3, first_invalid_id: null });
   });
+
+  it("records consent decisions as history and erases a patient with the backend's fan-out", async () => {
+    const aino = await token("aino");
+    const put = (purpose: string, granted: boolean) =>
+      call(`/consents/${purpose}`, aino, { method: "PUT", body: JSON.stringify({ granted }) });
+    await put("research", true);
+    await put("research", true); // idempotent
+    await put("research", false);
+    const overview = (await (await call("/consents", aino)).json()) as {
+      history: { granted: boolean }[];
+    };
+    expect(overview.history.map((h) => h.granted)).toEqual([false, true]);
+
+    const appt = (await (await book(aino, (await firstFreeSlot(aino)).id)).json()) as Appointment;
+    const erase = (body: object) =>
+      call("/patients/me/erasure", aino, { method: "POST", body: JSON.stringify(body) });
+    expect((await erase({})).status).toBe(422);
+    expect((await erase({ confirm: true })).status).toBe(200);
+    expect((await erase({ confirm: true })).status).toBe(409);
+
+    expect(state.appointments.find((a) => a.id === appt.id)?.status).toBe("cancelled");
+    expect(state.consents).toEqual([]);
+    expect(await (await call("/patients/me", aino)).json()).toMatchObject({
+      full_name: "Erased patient",
+      identity_code: null,
+    });
+  });
 });

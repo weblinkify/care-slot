@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState, type SubmitEvent } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import { ApiError } from "@/api/client";
 import { Alert } from "@/components/ui/Alert";
@@ -20,6 +20,7 @@ const DEMO_ACCOUNTS = [
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
@@ -43,7 +44,12 @@ export function LoginPage() {
         : null;
 
   return (
-    <div className="mx-auto max-w-sm">
+    <div className="mx-auto max-w-sm space-y-4">
+      {searchParams.get("erased") === "1" && (
+        <Alert tone="success">
+          Your personal data has been deleted and you have been signed out.
+        </Alert>
+      )}
       <Card>
         <CardTitle>Sign in</CardTitle>
         <p className="mt-1 text-sm text-ink-muted">

@@ -13,7 +13,9 @@ test("clinician opens a record with a stated reason; admin sees it in a verified
   const time = (await slot.innerText()).trim();
   await slot.click();
   await page.getByRole("button", { name: "Book appointment" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Booked for" })).toBeVisible();
+  const confirmation = page.getByRole("status").filter({ hasText: "Booked for" });
+  await expect(confirmation).toBeVisible();
+  const when = (await confirmation.innerText()).match(/Booked for (.+?)\./)?.[1] ?? "";
   await signOut(page);
 
   // 2. The clinician opens that patient's record, stating why.
@@ -38,4 +40,15 @@ test("clinician opens a record with a stated reason; admin sees it in a verified
   await page.getByRole("button", { name: "Verify integrity" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Chain intact" })).toBeVisible();
   await expectNoA11yViolations(page);
+  await signOut(page);
+
+  // 4. Clean up: free the slot again so repeated runs never exhaust the day.
+  await signIn(page, "eero");
+  await page.getByRole("link", { name: "My appointments" }).click();
+  const booked = page.getByRole("listitem").filter({ hasText: when }).filter({ hasText: "booked" });
+  await booked
+    .first()
+    .getByRole("button", { name: /^Cancel/ })
+    .click();
+  await expect(booked).toHaveCount(0);
 });
