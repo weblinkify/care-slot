@@ -38,8 +38,7 @@ def database_url() -> Iterator[str]:
         os.environ["CARESLOT_BLIND_INDEX_KEY"] = base64.b64encode(os.urandom(32)).decode()
         crypto_module.get_key_ring.cache_clear()
         config_module.get_settings.cache_clear()
-        db_module.get_engine.cache_clear()
-        db_module.get_session_factory.cache_clear()
+        db_module.reset_engines()
 
         cfg = Config(os.path.join(BACKEND_DIR, "alembic.ini"))
         cfg.set_main_option("script_location", os.path.join(BACKEND_DIR, "migrations"))

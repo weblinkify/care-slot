@@ -72,3 +72,12 @@ def test_log_redaction_masks_personal_data() -> None:
 def test_naive_datetimes_are_rejected() -> None:
     with pytest.raises(ValueError, match="naive"):
         UTCDateTime().process_bind_param(datetime(2026, 1, 1, 9, 0), None)  # noqa: DTZ001
+
+
+def test_one_database_url_means_exactly_one_engine() -> None:
+    # Regression: lru_cache keyed get_engine() and get_engine(None) separately -> two pools,
+    # and tracing instrumented only one of them.
+    from careslot.shared.db import get_engine, get_session_factory
+
+    assert get_engine() is get_engine(None)
+    assert get_session_factory().kw["bind"] is get_engine()

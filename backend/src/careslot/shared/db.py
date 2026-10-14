@@ -48,14 +48,31 @@ class UTCDateTime(TypeDecorator[datetime]):
         return value.astimezone(UTC) if value is not None else None
 
 
-@lru_cache
 def get_engine(url: str | None = None) -> Engine:
-    return create_engine(url or get_settings().database_url, pool_pre_ping=True)
+    # Resolve the URL *before* caching: with lru_cache directly on this function,
+    # get_engine() and get_engine(None) were different cache keys, i.e. two connection pools
+    # (and tracing attached to only one of them). One database URL -> exactly one engine.
+    return _engine_for(url or get_settings().database_url)
 
 
 @lru_cache
+def _engine_for(url: str) -> Engine:
+    return create_engine(url, pool_pre_ping=True)
+
+
 def get_session_factory(url: str | None = None) -> sessionmaker[Session]:
-    return sessionmaker(bind=get_engine(url), expire_on_commit=False)
+    return _session_factory_for(url or get_settings().database_url)
+
+
+@lru_cache
+def _session_factory_for(url: str) -> sessionmaker[Session]:
+    return sessionmaker(bind=_engine_for(url), expire_on_commit=False)
+
+
+def reset_engines() -> None:
+    """Drop cached engines/factories (tests switch databases between sessions)."""
+    _engine_for.cache_clear()
+    _session_factory_for.cache_clear()
 
 
 def get_session() -> Iterator[Session]:
