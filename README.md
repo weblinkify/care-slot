@@ -84,7 +84,7 @@ build otherwise.
 
 | Concern | How | Proof |
 |---|---|---|
-| Authentication | RS256 JWTs, algorithm pinned, `iss`/`aud`/`exp` required, API holds only the public key; failed-login rate limiting | `tests/unit/test_auth.py` (incl. `alg=none` forgery) |
+| Authentication | RS256 JWTs, algorithm pinned, `iss`/`aud`/`exp` required, API holds only the public key; failed-login rate limiting; access token in memory only, sessions survive reloads through an `HttpOnly` refresh cookie ([ADR-0012](docs/adr/0012-session-refresh-cookie.md)) | `tests/unit/test_auth.py` (incl. `alg=none` forgery) |
 | Ownership | Patients see only their own data; others' resources return **404, not 403** | negative tests in `test_service.py` |
 | Purpose limitation | Clinicians open a record only with a care relationship **and** a stated clinical reason | `test_patients_and_audit.py` |
 | Audit | Every successful patient-data access is audited *in the same transaction*; append-only by trigger; SHA-256 hash chain; reading the log is audited ([ADR-0004](docs/adr/0004-append-only-hash-chained-audit-log.md)) | tamper test with the trigger disabled |

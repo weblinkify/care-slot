@@ -66,6 +66,60 @@ function principal(request: Request): DemoUser | null {
   return Object.values(DEMO_USERS).find((u) => u.subject === token) ?? null;
 }
 
+/**
+ * Stands in for the real API's HttpOnly refresh cookie. A mocked response cannot set an
+ * HttpOnly cookie, so the demo keeps the signed-in subject in sessionStorage: same lifetime
+ * (the browser session), synthetic users only. Never used outside demo mode.
+ */
+export type DemoSessionStore = {
+  get: () => string | null;
+  set: (subject: string | null) => void;
+};
+
+const SESSION_KEY = "careslot-demo-session";
+
+export function browserSessionStore(): DemoSessionStore {
+  let fallback: string | null = null; // storage can be blocked (private mode, strict settings)
+  return {
+    get: () => {
+      try {
+        return sessionStorage.getItem(SESSION_KEY);
+      } catch {
+        return fallback;
+      }
+    },
+    set: (subject) => {
+      fallback = subject;
+      try {
+        if (subject) sessionStorage.setItem(SESSION_KEY, subject);
+        else sessionStorage.removeItem(SESSION_KEY);
+      } catch {
+        // keep the in-memory fallback
+      }
+    },
+  };
+}
+
+export function memorySessionStore(): DemoSessionStore {
+  let subject: string | null = null;
+  return {
+    get: () => subject,
+    set: (next) => {
+      subject = next;
+    },
+  };
+}
+
+function tokenFor(user: DemoUser) {
+  return HttpResponse.json<TokenResponse>({
+    access_token: `demo:${user.subject}`,
+    token_type: "bearer",
+    expires_in: 900,
+    role: user.role,
+    display_name: user.display_name,
+  });
+}
+
 /** The real API never returns patient_id in patient-facing appointment responses. */
 function publicView(appointment: DemoAppointment): Appointment {
   const { patient_id, ...rest } = appointment;
@@ -76,6 +130,7 @@ export function createHandlers(
   state: DemoState = createDemoState(),
   now: () => Date = () => new Date(),
   audit: DemoAuditLog = new DemoAuditLog(),
+  sessions: DemoSessionStore = browserSessionStore(),
 ) {
   const changeWindowOpen = (a: DemoAppointment) =>
     now().getTime() <= new Date(a.starts_at).getTime() - CHANGE_CUTOFF_MS;
@@ -139,13 +194,19 @@ export function createHandlers(
           "Authentication required",
           "Invalid username or password",
         );
-      return HttpResponse.json<TokenResponse>({
-        access_token: `demo:${user.subject}`,
-        token_type: "bearer",
-        expires_in: 900,
-        role: user.role,
-        display_name: user.display_name,
-      });
+      sessions.set(user.subject);
+      return tokenFor(user);
+    }),
+
+    http.post(`${API}/auth/refresh`, () => {
+      const subject = sessions.get();
+      const user = Object.values(DEMO_USERS).find((u) => u.subject === subject);
+      return user ? tokenFor(user) : problem(401, "unauthenticated", "No active session");
+    }),
+
+    http.post(`${API}/auth/logout`, () => {
+      sessions.set(null);
+      return new HttpResponse(null, { status: 204 });
     }),
 
     http.get(`${API}/clinics`, ({ request }) =>

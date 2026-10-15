@@ -1,6 +1,6 @@
 # 0006. Verify RS256 JWTs from an external IdP; use a mock IdP locally and for demos
 
-- **Status:** Accepted
+- **Status:** Accepted (session handling amended by [0012](0012-session-refresh-cookie.md))
 - **Date:** 2026-10-14
 
 ## Context

@@ -9,7 +9,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from careslot.main import create_app
-from careslot.mock_idp.router import DEMO_PASSWORD
+from careslot.mock_idp.router import (
+    DEMO_PASSWORD,
+    DEMO_USERS,
+    REFRESH_COOKIE,
+    issue_refresh_token,
+)
 from careslot.shared import security
 from careslot.shared.config import Settings, get_settings
 from careslot.shared.errors import AuthenticationError
@@ -58,10 +63,75 @@ def test_login_is_rate_limited(client: TestClient) -> None:
     assert int(blocked.headers["Retry-After"]) > 0
 
 
+def refresh(client: TestClient, cookie: str | None) -> Any:
+    # Set per request: the cookie is Secure, so the http:// test client would not resend it.
+    client.cookies.clear()
+    if cookie is not None:
+        client.cookies.set(REFRESH_COOKIE, cookie)
+    return client.post("/api/v1/auth/refresh")
+
+
+def test_login_sets_a_locked_down_refresh_cookie(client: TestClient) -> None:
+    set_cookie = login(client, "aino").headers["set-cookie"].lower()
+    assert set_cookie.startswith(f"{REFRESH_COOKIE}=")
+    for attribute in ("httponly", "secure", "samesite=strict", "path=/api/v1/auth"):
+        assert attribute in set_cookie
+    assert "max-age" not in set_cookie and "expires" not in set_cookie  # session cookie
+
+
+def test_refresh_cookie_survives_a_reload_as_a_new_access_token(client: TestClient) -> None:
+    cookie = login(client, "dr.aava").cookies[REFRESH_COOKIE]
+    resp = refresh(client, cookie)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert decode_token(body["access_token"]).subject == DEMO_USERS["dr.aava"].subject
+    assert body["role"] == "clinician"
+    assert body["display_name"] == "Dr. Aava Example"
+
+
+def test_refresh_without_a_cookie_is_rejected(client: TestClient) -> None:
+    resp = refresh(client, None)
+    assert resp.status_code == 401
+    assert resp.headers["content-type"] == "application/problem+json"
+
+
+def test_access_token_is_not_accepted_as_a_refresh_token(client: TestClient) -> None:
+    access = login(client, "aino").json()["access_token"]
+    assert refresh(client, access).status_code == 401
+
+
+def test_refresh_token_is_not_accepted_as_an_access_token(client: TestClient) -> None:
+    cookie = login(client, "aino").cookies[REFRESH_COOKIE]
+    with pytest.raises(AuthenticationError):
+        decode_token(cookie)
+    client.cookies.clear()
+    resp = client.get("/api/v1/clinics", headers={"Authorization": f"Bearer {cookie}"})
+    assert resp.status_code == 401
+
+
+def test_expired_refresh_token_is_rejected(client: TestClient) -> None:
+    stale = issue_refresh_token(
+        DEMO_USERS["aino"].subject, now=datetime.now(UTC) - timedelta(hours=9)
+    )
+    assert refresh(client, stale).status_code == 401
+
+
+def test_logout_clears_the_refresh_cookie(client: TestClient) -> None:
+    resp = client.post("/api/v1/auth/logout")
+    assert resp.status_code == 204
+    set_cookie = resp.headers["set-cookie"].lower()
+    assert set_cookie.startswith(f'{REFRESH_COOKIE}=""') or f"{REFRESH_COOKIE}=;" in set_cookie
+    assert "max-age=0" in set_cookie
+    assert "path=/api/v1/auth" in set_cookie
+
+
 def test_mock_idp_is_not_mounted_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
     app = create_app(Settings(environment="production"))
-    resp = TestClient(app).post("/api/v1/auth/token", json={"username": "a", "password": "b"})
+    production = TestClient(app)
+    resp = production.post("/api/v1/auth/token", json={"username": "a", "password": "b"})
     assert resp.status_code == 404
+    assert production.post("/api/v1/auth/refresh").status_code == 404
+    assert production.post("/api/v1/auth/logout").status_code == 404
 
 
 def test_production_refuses_to_start_without_a_public_key(monkeypatch: pytest.MonkeyPatch) -> None:
