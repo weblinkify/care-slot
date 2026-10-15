@@ -9,7 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Appointment, AuditEntry, ChainVerification, Slot } from "@/api/types";
 
 import { CLINICIANS, createDemoState, DEMO_USERS, type DemoState } from "./db";
-import { createHandlers } from "./handlers";
+import { createHandlers, memorySessionStore } from "./handlers";
 
 const BASE = "http://demo.test/api/v1";
 let state: DemoState;
@@ -25,7 +25,7 @@ afterAll(() => {
 beforeEach(() => {
   now = new Date("2026-03-02T08:00:00Z");
   state = createDemoState(now);
-  server.resetHandlers(...createHandlers(state, () => now));
+  server.resetHandlers(...createHandlers(state, () => now, undefined, memorySessionStore()));
 });
 
 async function token(username: string): Promise<string> {
@@ -64,6 +64,22 @@ describe("demo API", () => {
     });
     expect(res.status).toBe(401);
     expect(res.headers.get("content-type")).toContain("application/problem+json");
+  });
+
+  it("restores a session after a reload until sign-out, like the refresh cookie", async () => {
+    const refresh = () => fetch(`${BASE}/auth/refresh`, { method: "POST" });
+    expect((await refresh()).status).toBe(401);
+
+    await token("dr.aava");
+    const restored = await refresh();
+    expect(restored.status).toBe(200);
+    expect(await restored.json()).toMatchObject({
+      access_token: `demo:${DEMO_USERS["dr.aava"]?.subject ?? ""}`,
+      role: "clinician",
+    });
+
+    expect((await fetch(`${BASE}/auth/logout`, { method: "POST" })).status).toBe(204);
+    expect((await refresh()).status).toBe(401);
   });
 
   it("prevents double booking", async () => {

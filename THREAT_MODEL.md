@@ -25,7 +25,9 @@ Each mitigation names the code or test that implements it.
 |---|---|---|---|
 | **S**poofing | Forged or tampered token | RS256 only (algorithm pinned, `alg=none` rejected); `iss`/`aud`/`exp`/`sub` required; API holds only the public key | `shared/security.py`, `tests/unit/test_auth.py` |
 | | Password guessing on login | 5 *failed* attempts/min per client+username → 429 with `Retry-After`; constant-time compare; KDF runs for unknown users too | `mock_idp/router.py`, `shared/ratelimit.py` |
-| | Stolen token reused | 15-min token lifetime; token kept in memory only (not localStorage) | `shared/security.py`, `frontend/src/api/client.ts` |
+| | Stolen token reused | 15-min access token kept in memory only (not localStorage); the reload-surviving refresh token is in an `HttpOnly`, `Secure`, `SameSite=Strict` cookie scoped to `/api/v1/auth`, lasts at most 8 h and ends with the browser session (ADR-0012) | `shared/security.py`, `mock_idp/router.py`, `frontend/src/api/client.ts` |
+| | Refresh token replayed as an access token | Refresh token is addressed to the IdP (`aud` = issuer, `typ=refresh`); the API only accepts its own audience | `test_refresh_token_is_not_accepted_as_an_access_token` |
+| | CSRF against the refresh cookie | `SameSite=Strict`; refresh only returns JSON, which CORS (explicit origin list) hides from other origins; no state-changing endpoint reads the cookie except logout | `mock_idp/router.py`, `main.py` |
 | **T**ampering | Booking on someone else's behalf (mass assignment) | Patient id taken from the token, never the body; `extra="forbid"` rejects unknown fields | `scheduling/application/services.py`, `test_unknown_fields_are_rejected` |
 | | Race: two patients book the same slot | Partial unique index (one *booked* appointment per slot) as the final guard | `scheduling/infrastructure/models.py`, `test_concurrent_bookings_cannot_both_win` |
 | | Editing or deleting audit history | DB trigger blocks UPDATE/DELETE/TRUNCATE; SHA-256 hash chain detects tampering by privileged users | migration `ed9f2c4c9a5c`, `test_tampering_by_a_privileged_db_user_is_detected` |
@@ -42,7 +44,7 @@ Each mitigation names the code or test that implements it.
 | | Login flooding | Rate limiting (per replica; gateway/WAF in production) | `shared/ratelimit.py` |
 | **E**levation of privilege | Patient calls clinician or admin endpoints | Role check at the route *and* in the use case | `require_role`, `_require` |
 | | Mock IdP reachable in production | Not mounted when `environment=production`; startup fails without a real public key | `test_mock_idp_is_not_mounted_in_production` |
-| | XSS steals tokens | Strict CSP (`script-src 'self'`), React escaping, no `dangerouslySetInnerHTML`; headers asserted by E2E | `frontend/security-headers.conf`, `e2e/headers.spec.ts` |
+| | XSS steals tokens | Strict CSP (`script-src 'self'`), React escaping, no `dangerouslySetInnerHTML`; headers asserted by E2E; refresh cookie is `HttpOnly`, so script cannot read it | `frontend/security-headers.conf`, `e2e/headers.spec.ts`, `e2e/session.spec.ts` |
 
 ## Residual risks and planned work
 
@@ -50,6 +52,8 @@ Each mitigation names the code or test that implements it.
 - **Denied access attempts are not in the audit log** (the request rolls back). They should go
   to a separate security-event stream for SIEM alerting.
 - **No IdP deactivation on erasure.** The real IdP integration should consume `PatientErased`.
+- **Mock refresh tokens cannot be revoked.** They are stateless, so logout clears the cookie but
+  a copy taken elsewhere works for up to 8 hours. A real IdP keeps revocable server-side sessions.
 - **Audit chain verification is O(n)** and on demand. Schedule it, and anchor chain heads to
   WORM storage (ADR-0004).
 - **No WAF, DDoS protection or bot management** in this repository. These are platform concerns,
