@@ -16,7 +16,7 @@ dependencies = [
     # ships no x86_64-macOS wheel, so Intel-Mac *local development* (synthetic data only) is
     # allowed the last wheel-available version. pip-audit runs on Linux, i.e. on what ships.
     "cryptography>=50; sys_platform != 'darwin' or platform_machine != 'x86_64'",
-    "cryptography>=48,<49; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "cryptography>=48,<51; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "structlog>=24.4",
     "opentelemetry-api>=1.28",
     "opentelemetry-sdk>=1.28",
