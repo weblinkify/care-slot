@@ -99,6 +99,46 @@ build otherwise.
 The STRIDE analysis of the booking flow, with residual risks, is in
 **[THREAT_MODEL.md](THREAT_MODEL.md)**.
 
+### Security as a developer: the day-to-day habits
+
+The table above shows what the system does. These are the habits behind it, from the first
+commit to merge:
+
+1. **Synthetic data only.** `make seed` creates every patient, clinician and slot. No real
+   personal data goes into code, fixtures, test names, screenshots, prompts, commits or PR text.
+2. **No secrets in git.** `make up` generates local-only encryption keys into `.env` (which is
+   git-ignored). Keys reach the app only through the environment or a secret store, never
+   hard-coded and not even in tests (the test fixtures supply them).
+3. **Local guardrails before every commit.** The pre-commit hooks run `gitleaks` and
+   `detect-private-key` together with ruff, import-boundary checks and frontend lint. A leaked key is
+   stopped on your machine and never reaches the remote.
+4. **Code rules that close whole bug classes:**
+   - Validate every input at the API edge with Pydantic, with lengths and formats constrained.
+     Use closed lists instead of free text.
+   - Log IDs, never names, identity codes, emails, phone numbers or free text. Key redaction
+     in `shared.logging` is only a safety net. On the frontend `no-console` is an ESLint error.
+   - Every read or write of patient data goes through the `audit` module, in the same
+     transaction.
+   - For someone else's record, return **404, not 403**.
+   - Modules talk only through their public interface or domain events. `lint-imports`
+     enforces this.
+   - In the browser the access token is kept in memory only, never in `localStorage`. The refresh token is
+     an `HttpOnly` cookie that JavaScript cannot read, and it is sent only to `/auth/*`.
+5. **Negative tests for every security rule.** Each rule (ownership, roles, audit, purpose
+   limitation) needs a test proving that the forbidden thing really is forbidden.
+6. **CI runs the same gates for everyone:** gitleaks over the full history, `pip-audit`,
+   `npm audit`, a Trivy container scan (fails on fixable HIGH/CRITICAL), an SBOM, and E2E
+   checks of the security headers on both nginx and Vercel. Dependabot keeps dependencies
+   current.
+7. **Extra review where it matters.** [CODEOWNERS](.github/CODEOWNERS) requires owner review
+   for migrations, `shared/crypto.py`, `shared/security.py`, the audit module, `AGENTS.md`
+   and the AI policy. Protected branches cannot be pushed to directly.
+8. **New dependencies need a reason** in the PR: what the dependency does, why the stdlib or existing deps are not
+   enough, its licence and its maintenance status.
+
+More detail: [docs/engineering-standards.md §6](docs/engineering-standards.md) and
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## AI-assisted development, governed
 
 This repository was built with an AI coding agent working under the same rules it defines:
@@ -122,6 +162,46 @@ The gates earned their keep while building this repo. They caught a formatting s
 41 fixable CVEs in a base image (Trivy), nginx silently dropping every security header, and a
 duplicate connection pool that hid SQL from traces. Each became a regression test or a
 guardrail.
+
+### How agents work together (A2A)
+
+CareSlot has **no runtime agent-to-agent (A2A) protocol**. No production service delegates
+work to another AI agent, and the app exposes no agent endpoints or agent cards. "Agent to
+agent" here means how AI agents and people work together *while building* the code:
+
+```
+ human (task + approval)
+        │
+        ▼
+ AI coding agent ──reads──▶ AGENTS.md  (shared contract: architecture, security, NEVER-list)
+        │                      ▲
+        │ may spawn helper     │ same file, same rules
+        ▼ agents (search, plan, review)
+ helper agents ────────────────┘
+        │
+        ▼ changes on a branch
+ pre-commit hooks ─▶ CI gates ─▶ CODEOWNERS review by a human ─▶ merge
+```
+
+- **One shared contract.** Every agent (Claude Code, Copilot, Cursor, and any helper agent one
+  of them starts) reads the same [AGENTS.md](AGENTS.md). Agents coordinate through these
+  repository rules and the code itself. No private channel between them can skip the rules.
+- **Hand-offs go through git, not trust.** An agent hands work to another agent or a human as a
+  branch or PR. That work goes through the same hooks and CI as anything else. A helper agent's
+  output is treated as untrusted until the gates and a reviewer accept it.
+- **A human approves anything that is hard to undo.** Agents may write code, tests and docs.
+  Pushing, deploying, publishing, migrations and shell commands outside the project need a
+  person, and agents never merge their own PRs.
+- **No restricted data passes between agents.** The rule against putting real data, secrets or
+  unpatched vulnerability details into a prompt applies to every agent hand-off too
+  ([AI policy §2](docs/ai-development-policy.md)).
+- **New agent tools are new data flows.** MCP servers, plugins and extra agents need approval
+  from the lead developer and security, by a PR to the AI policy.
+
+The planned **AI day-summary assistant** (see *Built vs Planned*) is a single, feature-flagged
+call to an LLM, not a multi-agent system. It receives only a pseudonymised, minimised view of
+consenting patients, and its output is schema-validated before use. If agent-to-agent
+integration is ever added, it gets its own ADR and threat-model entry first.
 
 ## Run it
 
