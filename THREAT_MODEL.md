@@ -58,3 +58,7 @@ Each mitigation names the code or test that implements it.
   WORM storage (ADR-0004).
 - **No WAF, DDoS protection or bot management** in this repository. These are platform concerns,
   covered in the Terraform notes.
+
+AI-specific risks (coding agents and the planned assistant, mapped to the OWASP Top 10 for LLM
+Applications) are tracked in [docs/ai-risks.md](docs/ai-risks.md). Report vulnerabilities as
+described in [SECURITY.md](SECURITY.md).

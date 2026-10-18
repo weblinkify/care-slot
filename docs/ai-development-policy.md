@@ -85,4 +85,5 @@ is how the process failed, not who to blame. Fix the process (tooling, training,
 ## 7. Review of this policy
 
 Owned by the lead developer, with security and the DPO. Reviewed quarterly and whenever a new
-tool is requested.
+tool is requested. Review it together with the [AI risk register](ai-risks.md), which lists
+each risk this policy addresses and the control that enforces it.
