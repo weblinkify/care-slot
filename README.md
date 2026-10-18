@@ -97,7 +97,9 @@ build otherwise.
 | Web hardening | Strict CSP, nosniff, no-referrer, `no-store` on API responses | `e2e/headers.spec.ts` (nginx and Vercel) |
 
 The STRIDE analysis of the booking flow, with residual risks, is in
-**[THREAT_MODEL.md](THREAT_MODEL.md)**.
+**[THREAT_MODEL.md](THREAT_MODEL.md)**. Risks from AI (coding agents today, the planned
+assistant tomorrow) are in **[docs/ai-risks.md](docs/ai-risks.md)**. To report a
+vulnerability, see **[SECURITY.md](SECURITY.md)**: privately, never in a public issue.
 
 ### Security as a developer: the day-to-day habits
 
@@ -154,6 +156,9 @@ This repository was built with an AI coding agent working under the same rules i
   a review checklist.
 - **The same gates for everyone:** pre-commit hooks and CI apply identically to human and AI
   changes.
+- **[docs/ai-risks.md](docs/ai-risks.md)**: the AI risk register. It covers 15 risks of
+  AI-assisted development and 12 risks of the planned assistant, mapped to the OWASP Top 10 for
+  LLM Applications. Each risk names the gate or test that controls it.
 - **[docs/ai-metrics.md](docs/ai-metrics.md)**: how to measure the impact (DORA, review time,
   PR size, escaped defects) against a baseline, at team level only.
 
@@ -247,8 +252,9 @@ of done, test pyramid, review culture). A fully worked feature, layer by layer:
 
 | Docs | |
 |---|---|
-| [Architecture decisions (10 ADRs)](docs/adr/README.md) | [Non-functional requirements: SLOs, scaling, caching, DR, cost](docs/non-functional-requirements.md) |
+| [Architecture decisions (11 ADRs)](docs/adr/README.md) | [Non-functional requirements: SLOs, scaling, caching, DR, cost](docs/non-functional-requirements.md) |
 | [Threat model (STRIDE)](THREAT_MODEL.md) | [Infrastructure (Terraform)](infra/terraform/README.md) |
+| [Security policy and vulnerability reporting](SECURITY.md) | [AI risk register](docs/ai-risks.md) |
 
 ## Tech stack
 
@@ -276,7 +282,7 @@ Only things that are implemented **and** tested are listed as built.
 | Structured logs without PII, OpenTelemetry traces incl. SQL, `/health` and `/ready` | ✅ Built |
 | CI: lint, types, tests, E2E, secret/dependency/container scanning, SBOM, Terraform validate | ✅ Built |
 | Accessible UI (WCAG 2.2 AA scans), light/dark mode, client demo on Vercel | ✅ Built |
-| AI governance: AGENTS.md, AI policy, PR template, metrics; 10 ADRs, threat model, onboarding | ✅ Built |
+| AI governance: AGENTS.md, AI policy, PR template, metrics, AI risk register; 11 ADRs, threat model, security policy, onboarding | ✅ Built |
 | **AI day-summary assistant** (pseudonymised input, mock LLM, schema-validated output, feature flag) | 🟡 Planned: design noted in the threat model and NFRs; ADR-0008 lands with the implementation |
 | Real identity provider (OIDC / Suomi.fi) and IdP deactivation on erasure | 🟡 Planned |
 | Terraform applied to a real subscription; deploy pipeline | 🟡 Planned (skeleton validates) |
