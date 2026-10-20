@@ -41,7 +41,7 @@ def get_keys() -> KeyPair:
             private_pem=private.get_secret_value().encode() if private else None,
             public_pem=settings.jwt_public_key.encode(),
         )
-    if settings.environment not in ("local", "test"):
+    if not settings.allows_ephemeral_keys:
         # Fail fast at startup rather than run production with a throwaway key.
         raise RuntimeError("CARESLOT_JWT_PUBLIC_KEY must be set outside local/test")
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)

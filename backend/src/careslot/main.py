@@ -60,7 +60,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     wire_event_handlers(event_bus)
     setup_tracing(app, settings, engine=get_engine())
 
-    if settings.environment != "production":
+    if not settings.is_production:
         # Dev/demo-only token issuer. Imported lazily so production never even loads it.
         from careslot.mock_idp.router import router as mock_idp_router
 
